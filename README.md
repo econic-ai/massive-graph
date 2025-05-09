@@ -1,10 +1,19 @@
-# Massive Graph
+# Massive Graph.
+
+Massive Graph is a high-throughput real-time document database specifically designed to handle graph data structures in collaborative environments. As an open-source project, it's built to support a future where data control and collaborative intelligence can coexist.
+
+At its core, Massive Graph enables real-time massive graph synchronisation for multi-player multi-agent economic games and collaborative intelligence systems. It maintains consistency across complex, interconnected state changes in distributed environments, providing the foundation for next-generation intelligent markets and human-AI information coordination.
+
+The system is designed to put data owners in control while ensuring complete data and intelligence integrity. This enables new forms of coordination between human and artificial agents, supporting economic activities that would otherwise be impossible due to trust barriers, technical limitations, or security concerns.
+
+In intelligent economies, where both human and AI agents make decisions based on shared information, the integrity of that information and the relationships between data points become critical infrastructure. Massive Graph addresses this need by creating a verifiable, secure foundation upon which complex coordination can occur at previously impossible scales.
+
+## Problems We're Solving
 
 In today's digital landscape, meaningful collaboration faces fundamental challenges that traditional databases weren't designed to address. As organisations increasingly need to work together across boundaries, share intelligence, and coordinate in real-time, the limitations of conventional approaches become apparent.
 
 Massive Graph reimagines the document database as a high-throughput, real-time graph synchronisation engine built specifically for next-generation collaborative environments where data integrity, security, and control are paramount.
 
-## Problems We're Solving
 
 ### Secure Collaboration Without Trust
 
@@ -46,7 +55,7 @@ Massive Graph is a high-throughput real-time document database specifically desi
 - **Scalable to Millions**: Designed from the ground up to handle massive-scale collaboration
 - **End-to-End Security**: Cryptographic integrity from creation to consumption
 
-## Use Cases
+### Use Cases
 
 Massive Graph is insanely versatile.
 It can be used for any scenario requiring coordination of massive amounts of changing information relationships across a large set of unique actors.
