@@ -1,0 +1,1 @@
+//! Connection module stub

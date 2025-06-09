@@ -1,0 +1,1 @@
+//! Sync module stub

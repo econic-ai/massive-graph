@@ -1,0 +1,1 @@
+//! Allocator module stub
