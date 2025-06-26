@@ -6,59 +6,87 @@
 use crate::Result;
 use once_cell::sync::Lazy;
 use prometheus::{
-    register_counter, register_gauge, register_histogram, register_int_counter,
-    register_int_gauge, Counter, Gauge, Histogram, IntCounter, IntGauge, Registry,
+    register_gauge, register_histogram, register_int_counter,
+    register_int_gauge, Gauge, Histogram, IntCounter, IntGauge, Registry,
 };
 use std::time::Instant;
 
 /// Global metrics registry
 static REGISTRY: Lazy<Registry> = Lazy::new(Registry::new);
 
-/// Operation counters
+/// Operation counters for tracking graph database operations
 pub struct OperationMetrics {
+    /// Total number of nodes created
     pub nodes_created: IntCounter,
+    /// Total number of nodes updated
     pub nodes_updated: IntCounter,
+    /// Total number of nodes deleted
     pub nodes_deleted: IntCounter,
+    /// Total number of edges created
     pub edges_created: IntCounter,
+    /// Total number of edges updated
     pub edges_updated: IntCounter,
+    /// Total number of edges deleted
     pub edges_deleted: IntCounter,
+    /// Total number of delta operations processed successfully
     pub deltas_processed: IntCounter,
+    /// Total number of failed delta operations
     pub deltas_failed: IntCounter,
 }
 
-/// Performance metrics
+/// Performance metrics for monitoring system resource usage
 pub struct PerformanceMetrics {
+    /// Histogram of operation durations in seconds
     pub operation_duration: Histogram,
+    /// Current memory usage in bytes
     pub memory_usage: Gauge,
+    /// Number of active network connections
     pub active_connections: IntGauge,
+    /// Current size of the operation queue
     pub queue_size: IntGauge,
+    /// Current CPU usage percentage (0-100)
     pub cpu_usage: Gauge,
 }
 
-/// Storage metrics
+/// Storage metrics for monitoring disk and cache performance
 pub struct StorageMetrics {
+    /// Current disk usage in bytes
     pub disk_usage: Gauge,
+    /// Total number of disk read operations
     pub disk_reads: IntCounter,
+    /// Total number of disk write operations
     pub disk_writes: IntCounter,
+    /// Total number of cache hits
     pub cache_hits: IntCounter,
+    /// Total number of cache misses
     pub cache_misses: IntCounter,
 }
 
-/// Network metrics
+/// Network metrics for monitoring communication and data transfer
 pub struct NetworkMetrics {
+    /// Total bytes sent over the network
     pub bytes_sent: IntCounter,
+    /// Total bytes received over the network
     pub bytes_received: IntCounter,
+    /// Total number of connections accepted
     pub connections_accepted: IntCounter,
+    /// Total number of connections closed
     pub connections_closed: IntCounter,
+    /// Total number of messages sent
     pub messages_sent: IntCounter,
+    /// Total number of messages received
     pub messages_received: IntCounter,
 }
 
-/// Centralized metrics collection
+/// Centralized metrics collection for all system components
 pub struct Metrics {
+    /// Graph operation metrics (CRUD operations on nodes/edges)
     pub operations: OperationMetrics,
+    /// System performance metrics (CPU, memory, connections)
     pub performance: PerformanceMetrics,
+    /// Storage and caching metrics
     pub storage: StorageMetrics,
+    /// Network communication metrics
     pub network: NetworkMetrics,
 }
 
@@ -83,6 +111,7 @@ impl Metrics {
 }
 
 impl OperationMetrics {
+    /// Create a new OperationMetrics instance with registered Prometheus counters
     fn new() -> Result<Self> {
         Ok(Self {
             nodes_created: register_int_counter!(
@@ -122,6 +151,7 @@ impl OperationMetrics {
 }
 
 impl PerformanceMetrics {
+    /// Create a new PerformanceMetrics instance with registered Prometheus metrics
     fn new() -> Result<Self> {
         Ok(Self {
             operation_duration: register_histogram!(
@@ -150,6 +180,7 @@ impl PerformanceMetrics {
 }
 
 impl StorageMetrics {
+    /// Create a new StorageMetrics instance with registered Prometheus metrics
     fn new() -> Result<Self> {
         Ok(Self {
             disk_usage: register_gauge!(
@@ -177,6 +208,7 @@ impl StorageMetrics {
 }
 
 impl NetworkMetrics {
+    /// Create a new NetworkMetrics instance with registered Prometheus metrics
     fn new() -> Result<Self> {
         Ok(Self {
             bytes_sent: register_int_counter!(
@@ -207,9 +239,11 @@ impl NetworkMetrics {
     }
 }
 
-/// Timer for measuring operation duration
+/// Timer for measuring operation duration with automatic histogram recording
 pub struct Timer {
+    /// Start time of the operation
     start: Instant,
+    /// Histogram to record the duration when finished
     histogram: Histogram,
 }
 
@@ -229,7 +263,17 @@ impl Timer {
     }
 }
 
-/// Convenience macro for timing operations
+/// Convenience macro for timing operations and automatically recording duration
+/// 
+/// # Examples
+/// ```
+/// use massive_graph::time_operation;
+/// let metrics = Metrics::global();
+/// let result = time_operation!(metrics.performance.operation_duration, {
+///     // Your operation here
+///     expensive_computation()
+/// });
+/// ```
 #[macro_export]
 macro_rules! time_operation {
     ($metric:expr, $body:expr) => {{
@@ -240,25 +284,37 @@ macro_rules! time_operation {
     }};
 }
 
-/// Initialize the metrics registry
+/// Initialize the metrics registry by creating the global metrics instance
+/// 
+/// This function should be called once during application startup to ensure
+/// all metrics are properly registered with Prometheus.
 pub fn init_registry() {
     // Initialize global metrics to register them
     let _ = Metrics::global();
 }
 
-/// Get the Prometheus registry for serving metrics
+/// Get the Prometheus registry for serving metrics to monitoring systems
+/// 
+/// This registry contains all registered metrics and can be used with
+/// Prometheus HTTP endpoints or other metric collection systems.
 pub fn registry() -> &'static Registry {
     &REGISTRY
 }
 
-/// Collect and return all metrics as a string
+/// Collect and return all metrics as a Prometheus-formatted string
+/// 
+/// This function gathers all registered metrics and formats them according
+/// to the Prometheus exposition format for HTTP endpoints.
 pub fn collect_metrics() -> String {
     let encoder = prometheus::TextEncoder::new();
     let metric_families = registry().gather();
     encoder.encode_to_string(&metric_families).unwrap_or_default()
 }
 
-/// Update system metrics periodically
+/// Update system metrics periodically with current resource usage
+/// 
+/// This function should be called regularly (e.g., every 5-10 seconds) to
+/// keep system metrics current. It updates memory usage, CPU usage, and disk usage.
 pub async fn update_system_metrics() {
     let metrics = Metrics::global();
     
@@ -279,18 +335,30 @@ pub async fn update_system_metrics() {
 }
 
 /// Get current memory usage in bytes
+/// 
+/// # Note
+/// This is a simplified implementation. In production, use a proper system
+/// monitoring crate like `sysinfo` or `procfs` for accurate measurements.
 fn get_memory_usage() -> Result<usize> {
     // Simplified implementation - in production use a proper system monitoring crate
     Ok(0)
 }
 
-/// Get current CPU usage percentage
+/// Get current CPU usage percentage (0.0 to 100.0)
+/// 
+/// # Note
+/// This is a simplified implementation. In production, use a proper system
+/// monitoring crate like `sysinfo` for accurate CPU measurements.
 async fn get_cpu_usage() -> Result<f64> {
     // Simplified implementation - in production use a proper system monitoring crate
     Ok(0.0)
 }
 
 /// Get current disk usage in bytes
+/// 
+/// # Note
+/// This is a simplified implementation. In production, use a proper system
+/// monitoring crate like `sysinfo` or filesystem APIs for accurate measurements.
 fn get_disk_usage() -> Result<usize> {
     // Simplified implementation - in production use a proper system monitoring crate
     Ok(0)
