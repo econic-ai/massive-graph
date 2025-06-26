@@ -13,15 +13,12 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 pub mod core;
 
 // Main functional modules
-pub mod graph;
 pub mod storage;
-pub mod network;
 pub mod api;
 pub mod system;
 
 // Re-export commonly used items for convenience
-pub use core::{Error, Result, Config, NodeId, EdgeId, Value};
-pub use graph::{Node, Edge, Delta};
+pub use core::{Error, Result, Config, Value};
 
 /// Crate version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -7,9 +7,8 @@ use clap::{Arg, Command};
 use massive_graph::{core::Config, Result};
 use std::sync::Arc;
 use tokio::signal;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use massive_graph::api::start_server;
-use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -60,6 +59,12 @@ async fn main() -> Result<()> {
                 .value_name("LEVEL")
                 .help("Log level (trace, debug, info, warn, error)")
         )
+        .arg(
+            Arg::new("storage-type")
+                .long("storage-type")
+                .value_name("TYPE")
+                .help("Storage backend type (memory, disk, distributed)")
+        )
         .get_matches();
 
     // Initialize logging
@@ -76,10 +81,15 @@ async fn main() -> Result<()> {
     apply_cli_overrides(&mut config, &matches)?;
 
     info!("Starting Massive Graph Database v{}", env!("CARGO_PKG_VERSION"));
-    info!("Configuration: {:#?}", config);
+    // info!("Configuration: {:#?}", config);
 
     // Validate system requirements
     validate_system_requirements(&config)?;
+
+    // Initialize storage
+    let storage = massive_graph::storage::create_shared_storage(&config.storage)
+        .map_err(|e| massive_graph::Error::config(format!("Storage initialization failed: {}", e)))?;
+    info!("Storage initialized: {:?}", config.storage.storage_type);
 
     // Create shared configuration
     let config = Arc::new(config);
@@ -88,7 +98,7 @@ async fn main() -> Result<()> {
     let shutdown_signal = setup_shutdown_handler();
 
     // Start all servers concurrently
-    let server_handles = start_servers(config.clone()).await?;
+    let server_handles = start_servers(config.clone(), storage).await?;
 
     // Wait for shutdown signal
     shutdown_signal.await;
@@ -129,6 +139,17 @@ fn apply_cli_overrides(config: &mut Config, matches: &clap::ArgMatches) -> Resul
 
     if let Some(level) = matches.get_one::<String>("log-level") {
         config.logging.level = level.clone();
+    }
+
+    if let Some(storage_type) = matches.get_one::<String>("storage-type") {
+        config.storage.storage_type = match storage_type.as_str() {
+            "memory" => massive_graph::core::config::StorageType::Memory,
+            "disk" => massive_graph::core::config::StorageType::Disk,
+            "distributed" => massive_graph::core::config::StorageType::Distributed,
+            _ => return Err(massive_graph::Error::config(
+                format!("Invalid storage type: {}. Valid options: memory, disk, distributed", storage_type)
+            )),
+        };
     }
 
     Ok(())
@@ -235,14 +256,15 @@ struct ServerHandle {
 }
 
 /// Start all servers concurrently
-async fn start_servers(config: Arc<Config>) -> Result<Vec<ServerHandle>> {
+async fn start_servers(config: Arc<Config>, storage: massive_graph::storage::SharedStorage) -> Result<Vec<ServerHandle>> {
     let mut handles = Vec::new();
 
     // Start HTTP server
     {
         let config = config.clone();
+        let storage = storage.clone();
         let handle = tokio::spawn(async move {
-            start_http_server(config).await
+            start_http_server(config, storage).await
         });
         handles.push(ServerHandle {
             name: "HTTP",
@@ -294,14 +316,14 @@ async fn start_servers(config: Arc<Config>) -> Result<Vec<ServerHandle>> {
 }
 
 /// Start HTTP server
-async fn start_http_server(config: Arc<Config>) -> Result<()> {
+async fn start_http_server(config: Arc<Config>, storage: massive_graph::storage::SharedStorage) -> Result<()> {
     info!("Starting HTTP server on {}", config.server.http_addr);
     
     // Configure server address
     let addr = config.server.http_addr;
     
     // Start the server
-    start_server(addr).await
+    start_server(addr, storage).await
         .map_err(|e| massive_graph::Error::config(format!("HTTP server failed: {}", e)))?;
 
     Ok(())
