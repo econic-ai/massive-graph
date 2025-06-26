@@ -3,13 +3,11 @@
 use axum::{
     http::{
         header::{CONTENT_TYPE, AUTHORIZATION},
-        HeaderValue, Method,
+        Method,
     },
-    middleware,
-    response::Json,
+    routing::{delete, get, patch, post, put},
     Router,
 };
-use serde_json::json;
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -17,64 +15,72 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use super::routes::{create_api_routes, create_websocket_routes};
+use super::handlers;
 
 /// Creates the main application router with all routes and middleware
-pub fn create_app() -> Router {
-    // API routes
-    let api_routes = create_api_routes();
-    
-    // WebSocket routes  
-    let ws_routes = create_websocket_routes();
-    
-    // Root status endpoint
-    let root_route = Router::new()
-        .route("/", axum::routing::get(root_handler));
-
+pub fn create_app(storage: crate::storage::SharedStorage) -> Router {
     // CORS configuration
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION])
         .allow_origin(Any);
 
-    // Build the complete router
+    // Build the complete router with all routes
     Router::new()
-        .merge(root_route)
-        .merge(api_routes)
-        .merge(ws_routes)
+        // Root route
+        .route("/", get(handlers::root_handler))
+        
+        // Collection routes
+        .route("/api/v1/collections", post(handlers::create_collection))
+        .route("/api/v1/collections", get(handlers::list_collections))
+        .route("/api/v1/collections/:id", get(handlers::get_collection))
+        .route("/api/v1/collections/:id", put(handlers::update_collection))
+        .route("/api/v1/collections/:id", delete(handlers::delete_collection))
+        
+        // Document routes
+        .route("/api/v1/documents", post(handlers::create_document))
+        .route("/api/v1/documents", get(handlers::list_documents))
+        .route("/api/v1/documents/:id", get(handlers::get_document))
+        .route("/api/v1/documents/:id", put(handlers::update_document))
+        .route("/api/v1/documents/:id", patch(handlers::patch_document))
+        .route("/api/v1/documents/:id", delete(handlers::delete_document))
+        
+        // Delta routes - Collection deltas
+        .route("/api/v1/collections/:id/deltas", post(handlers::apply_collection_deltas))
+        .route("/api/v1/collections/:id/deltas", get(handlers::get_collection_deltas))
+        
+        // Delta routes - Document deltas
+        .route("/api/v1/documents/:id/deltas", post(handlers::apply_document_deltas))
+        .route("/api/v1/documents/:id/deltas", get(handlers::get_document_deltas))
+        
+        // Delta routes - Global deltas
+        .route("/api/v1/deltas/since/:timestamp", get(handlers::get_deltas_since))
+        
+        // System routes
+        .route("/api/v1/health", get(handlers::health_check))
+        .route("/api/v1/info", get(handlers::system_info))
+        
+        // WebSocket routes
+        .route("/ws/collections", get(handlers::websocket_collections_handler))
+        .route("/ws/collections/:id", get(handlers::websocket_collection_handler))
+        .route("/ws/documents", get(handlers::websocket_documents_handler))
+        .route("/ws/documents/:id", get(handlers::websocket_document_handler))
+        
+        // Apply middleware
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(cors)
         )
-}
-
-/// Root handler that provides API information
-async fn root_handler() -> Json<serde_json::Value> {
-    Json(json!({
-        "name": "Massive Graph API",
-        "version": env!("CARGO_PKG_VERSION"),
-        "description": "Real-time graph database for collaborative intelligence",
-        "endpoints": {
-            "health": "/api/v1/health",
-            "info": "/api/v1/info",
-            "collections": "/api/v1/collections",
-            "documents": "/api/v1/documents",
-            "deltas": "/api/v1/deltas",
-            "websockets": {
-                "collections": "/ws/collections",
-                "documents": "/ws/documents"
-            }
-        },
-        "documentation": "https://docs.massive-graph.dev"
-    }))
+        // Add storage as shared state
+        .with_state(storage)
 }
 
 /// Start the HTTP server
-pub async fn start_server(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_server(addr: SocketAddr, storage: crate::storage::SharedStorage) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Starting Massive Graph API server on {}", addr);
     
-    let app = create_app();
+    let app = create_app(storage);
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     

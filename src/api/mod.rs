@@ -40,10 +40,8 @@
 //! - `GET /api/v1/info` - Database info and capabilities
 
 pub mod handlers;
-pub mod routes;
 pub mod server;
 
 // Re-export commonly used items
 pub use handlers::*;
-pub use routes::{create_api_routes, create_websocket_routes};
 pub use server::{create_app, start_server}; 
