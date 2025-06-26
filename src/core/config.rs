@@ -8,6 +8,17 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+/// Available storage backend types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StorageType {
+    /// In-memory storage for high performance
+    Memory,
+    /// Persistent disk storage (future implementation)
+    Disk,
+    /// Distributed storage (future implementation)
+    Distributed,
+}
+
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -55,6 +66,9 @@ pub struct ServerConfig {
 /// Storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
+    /// Storage backend type
+    pub storage_type: StorageType,
+    
     /// Data directory path
     pub data_dir: PathBuf,
     
@@ -191,6 +205,7 @@ impl Default for ServerConfig {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
+            storage_type: StorageType::Memory,
             data_dir: PathBuf::from("./data"),
             max_memory: 8 * 1024 * 1024 * 1024, // 8GB
             enable_mmap: true,
@@ -381,58 +396,3 @@ impl Config {
         }
     }
 }
-
-// For TOML parsing
-use serde::de::{self, Deserializer, Visitor};
-use std::fmt;
-
-// Custom deserializer for Duration from string
-fn deserialize_duration<'de, D>(deserializer: D) -> std::result::Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct DurationVisitor;
-    
-    impl<'de> Visitor<'de> for DurationVisitor {
-        type Value = Duration;
-        
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a duration string like '30s' or '5m'")
-        }
-        
-        fn visit_str<E>(self, value: &str) -> std::result::Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            parse_duration(value).map_err(E::custom)
-        }
-    }
-    
-    deserializer.deserialize_str(DurationVisitor)
-}
-
-// Simple duration parser for common formats
-fn parse_duration(s: &str) -> std::result::Result<Duration, String> {
-    if s.ends_with("ms") {
-        let ms: u64 = s[..s.len() - 2].parse()
-            .map_err(|_| "Invalid milliseconds")?;
-        Ok(Duration::from_millis(ms))
-    } else if s.ends_with('s') {
-        let secs: u64 = s[..s.len() - 1].parse()
-            .map_err(|_| "Invalid seconds")?;
-        Ok(Duration::from_secs(secs))
-    } else if s.ends_with('m') {
-        let mins: u64 = s[..s.len() - 1].parse()
-            .map_err(|_| "Invalid minutes")?;
-        Ok(Duration::from_secs(mins * 60))
-    } else if s.ends_with('h') {
-        let hours: u64 = s[..s.len() - 1].parse()
-            .map_err(|_| "Invalid hours")?;
-        Ok(Duration::from_secs(hours * 3600))
-    } else {
-        // Try parsing as raw seconds
-        let secs: u64 = s.parse()
-            .map_err(|_| "Invalid duration format")?;
-        Ok(Duration::from_secs(secs))
-    }
-} 
