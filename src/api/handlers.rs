@@ -1,71 +1,266 @@
 //! HTTP request handlers for the Massive Graph API
 
 use axum::{
-    extract::{Path, Query},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     Json as JsonExtractor,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use base64::prelude::*;
+
+use crate::core::types::{ID16, document::{Value as DocValue, AdaptiveMap, DocumentType}};
+use crate::core::DocumentStorage;
+use crate::storage::SharedStorage;
 
 // Response types
-#[derive(Serialize)]
+/// Standard API response wrapper for all endpoints
+#[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
+    /// Whether the operation was successful
     pub success: bool,
+    /// Response data (if successful)
     pub data: Option<T>,
+    /// Optional message describing the result
     pub message: Option<String>,
+    /// Optional error details
+    pub error: Option<String>,
 }
 
-#[derive(Serialize)]
-pub struct CollectionInfo {
+/// Document creation request
+#[derive(Debug, Deserialize)]
+pub struct CreateDocumentRequest {
+    /// Document type
+    pub doc_type: String,
+    /// Parent document ID (optional for root documents)
+    pub parent_id: Option<String>,
+    /// Document properties as JSON
+    pub properties: Value,
+}
+
+/// Document update request
+#[derive(Debug, Deserialize)]
+pub struct UpdateDocumentRequest {
+    /// Properties to update
+    pub properties: Value,
+}
+
+/// Document information response
+#[derive(Debug, Serialize)]
+pub struct DocumentInfo {
+    /// Document ID
     pub id: String,
-    pub name: String,
+    /// Document type
+    pub doc_type: String,
+    /// Parent document ID
+    pub parent_id: Option<String>,
+    /// Document properties
+    pub properties: Value,
+    /// Creation timestamp
     pub created_at: String,
+    /// Last update timestamp
+    pub updated_at: String,
+    /// Number of children
+    pub child_count: u16,
+}
+
+/// Delta operation request
+#[derive(Debug, Deserialize)]
+pub struct DeltaOperationRequest {
+    /// Operation type
+    pub operation: String,
+    /// Target document ID
+    pub target_id: String,
+    /// Operation data
+    pub data: Value,
+}
+
+/// Delta operation response
+#[derive(Debug, Serialize)]
+pub struct DeltaOperationResponse {
+    /// Operation ID
+    pub id: String,
+    /// Operation type
+    pub operation: String,
+    /// Target document ID
+    pub target_id: String,
+    /// Operation timestamp
+    pub timestamp: String,
+    /// Success status
+    pub success: bool,
+    /// Error message if failed
+    pub error: Option<String>,
+}
+
+/// Collection metadata and statistics
+#[derive(Debug, Serialize)]
+pub struct CollectionInfo {
+    /// Unique collection identifier
+    pub id: String,
+    /// Human-readable collection name
+    pub name: String,
+    /// ISO 8601 creation timestamp
+    pub created_at: String,
+    /// Number of documents in the collection
     pub document_count: u64,
 }
 
-#[derive(Serialize)]
-pub struct DocumentInfo {
-    pub id: String,
-    pub collection_id: Option<String>,
-    pub data: Value,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Serialize)]
+/// Delta operation metadata and content
+#[derive(Debug, Serialize)]
 pub struct DeltaInfo {
+    /// Unique delta identifier
     pub id: String,
+    /// Type of operation performed
     pub operation: String,
+    /// Target document or collection ID
     pub target_id: String,
+    /// Operation payload data
     pub data: Value,
+    /// ISO 8601 operation timestamp
     pub timestamp: String,
 }
 
-#[derive(Serialize)]
+/// System health check response
+#[derive(Debug, Serialize)]
 pub struct HealthResponse {
+    /// Current system status
     pub status: String,
+    /// System uptime duration
     pub uptime: String,
+    /// Database version
     pub version: String,
 }
 
-#[derive(Serialize)]
+/// System information and capabilities
+#[derive(Debug, Serialize)]
 pub struct InfoResponse {
+    /// Database name
     pub name: String,
+    /// Database version
     pub version: String,
+    /// List of supported capabilities
     pub capabilities: Vec<String>,
+    /// List of supported protocols
     pub protocols: Vec<String>,
 }
 
-#[derive(Deserialize)]
+/// Query parameters for pagination
+#[derive(Debug, Deserialize)]
 pub struct PaginationQuery {
+    /// Maximum number of items to return
     pub limit: Option<u32>,
+    /// Number of items to skip
     pub offset: Option<u32>,
 }
 
+// Utility functions for converting between JSON and internal types
+
+/// Convert JSON value to our internal Value type
+fn json_to_doc_value(json_value: &Value) -> Result<DocValue, String> {
+    match json_value {
+        Value::Null => Ok(DocValue::Null),
+        Value::Bool(b) => Ok(DocValue::Boolean(*b)),
+        Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(DocValue::I64(i))
+            } else if let Some(f) = n.as_f64() {
+                Ok(DocValue::F64(f))
+            } else {
+                Err("Invalid number format".to_string())
+            }
+        }
+        Value::String(s) => Ok(DocValue::String(s.clone())),
+        Value::Array(arr) => {
+            let mut doc_array = Vec::new();
+            for item in arr {
+                doc_array.push(json_to_doc_value(item)?);
+            }
+            Ok(DocValue::Array(doc_array))
+        }
+        Value::Object(obj) => {
+            let mut doc_obj = AdaptiveMap::new();
+            for (key, value) in obj {
+                doc_obj.insert(key.clone(), json_to_doc_value(value)?);
+            }
+            Ok(DocValue::Object(Box::new(doc_obj)))
+        }
+    }
+}
+
+/// Convert our internal Value type to JSON
+fn doc_value_to_json(doc_value: &DocValue) -> Value {
+    match doc_value {
+        DocValue::Null => Value::Null,
+        DocValue::Boolean(b) => Value::Bool(*b),
+        DocValue::I8(i) => json!(*i),
+        DocValue::I16(i) => json!(*i),
+        DocValue::I32(i) => json!(*i),
+        DocValue::I64(i) => json!(*i),
+        DocValue::U8(i) => json!(*i),
+        DocValue::U16(i) => json!(*i),
+        DocValue::U32(i) => json!(*i),
+        DocValue::U64(i) => json!(*i),
+        DocValue::F32(f) => json!(*f),
+        DocValue::F64(f) => json!(*f),
+        DocValue::String(s) => Value::String(s.clone()),
+        DocValue::Binary(b) => {
+            // Encode binary as base64 for JSON
+            Value::String(base64::prelude::BASE64_STANDARD.encode(b))
+        }
+        DocValue::Array(arr) => {
+            let json_array: Vec<Value> = arr.iter().map(doc_value_to_json).collect();
+            Value::Array(json_array)
+        }
+        DocValue::Object(obj) => {
+            let mut json_obj = serde_json::Map::new();
+            for (key, value) in obj.iter() {
+                json_obj.insert(key.clone(), doc_value_to_json(value));
+            }
+            Value::Object(json_obj)
+        }
+        DocValue::Reference(id) => Value::String(id.to_string()),
+        DocValue::BinaryStream(_) => Value::String("binary_stream".to_string()),
+        DocValue::TextStream(_) => Value::String("text_stream".to_string()),
+    }
+}
+
+/// Convert string to DocumentType
+fn string_to_doc_type(type_str: &str) -> Result<DocumentType, String> {
+    match type_str.to_lowercase().as_str() {
+        "root" => Ok(DocumentType::Root),
+        "generic" => Ok(DocumentType::Generic),
+        "text" => Ok(DocumentType::Text),
+        "binary" => Ok(DocumentType::Binary),
+        "json" => Ok(DocumentType::Json),
+        "graph" => Ok(DocumentType::Graph),
+        "node" => Ok(DocumentType::Node),
+        "edge" => Ok(DocumentType::Edge),
+        "collection" => Ok(DocumentType::Collection),
+        "group" => Ok(DocumentType::Group),
+        _ => Err(format!("Unknown document type: {}", type_str)),
+    }
+}
+
+/// Convert DocumentType to string
+fn doc_type_to_string(doc_type: DocumentType) -> String {
+    match doc_type {
+        DocumentType::Root => "root".to_string(),
+        DocumentType::Generic => "generic".to_string(),
+        DocumentType::Text => "text".to_string(),
+        DocumentType::Binary => "binary".to_string(),
+        DocumentType::Json => "json".to_string(),
+        DocumentType::Graph => "graph".to_string(),
+        DocumentType::Node => "node".to_string(),
+        DocumentType::Edge => "edge".to_string(),
+        DocumentType::Collection => "collection".to_string(),
+        DocumentType::Group => "group".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
 // Collection Handlers
+/// Create a new collection with the provided metadata
 pub async fn create_collection(
     JsonExtractor(payload): JsonExtractor<Value>,
 ) -> Result<(StatusCode, Json<ApiResponse<CollectionInfo>>), StatusCode> {
@@ -82,10 +277,12 @@ pub async fn create_collection(
             success: true,
             data: Some(collection),
             message: Some("Collection created successfully".to_string()),
+            error: None,
         }),
     ))
 }
 
+/// Retrieve collection metadata by ID
 pub async fn get_collection(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<CollectionInfo>>, StatusCode> {
@@ -100,9 +297,11 @@ pub async fn get_collection(
         success: true,
         data: Some(collection),
         message: None,
+        error: None,
     }))
 }
 
+/// Update collection metadata
 pub async fn update_collection(
     Path(id): Path<String>,
     JsonExtractor(payload): JsonExtractor<Value>,
@@ -118,9 +317,11 @@ pub async fn update_collection(
         success: true,
         data: Some(collection),
         message: Some("Collection updated successfully".to_string()),
+        error: None,
     }))
 }
 
+/// Delete a collection and all its documents
 pub async fn delete_collection(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), StatusCode> {
@@ -130,10 +331,12 @@ pub async fn delete_collection(
             success: true,
             data: None,
             message: Some(format!("Collection {} deleted successfully", id)),
+            error: None,
         }),
     ))
 }
 
+/// List all collections with pagination support
 pub async fn list_collections(
     Query(params): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<Vec<CollectionInfo>>>, StatusCode> {
@@ -160,121 +363,488 @@ pub async fn list_collections(
         success: true,
         data: Some(paginated),
         message: None,
+        error: None,
     }))
 }
 
 // Document Handlers
+/// Create a new document
 pub async fn create_document(
-    JsonExtractor(payload): JsonExtractor<Value>,
+    State(storage): State<SharedStorage>,
+    Json(request): Json<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DocumentInfo>>), StatusCode> {
-    let document = DocumentInfo {
-        id: "doc_456".to_string(),
-        collection_id: payload.get("collection_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        data: payload,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
+    // Generate new document ID
+    let doc_id = ID16::random();
+    
+    // Convert document type
+    let doc_type = match string_to_doc_type(&request.doc_type) {
+        Ok(dt) => dt,
+        Err(e) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(e),
+                }),
+            ));
+        }
     };
-
-    Ok((
-        StatusCode::CREATED,
-        Json(ApiResponse {
-            success: true,
-            data: Some(document),
-            message: Some("Document created successfully".to_string()),
-        }),
-    ))
+    
+    // Convert properties
+    let mut properties = match json_to_doc_value(&request.properties) {
+        Ok(DocValue::Object(obj)) => *obj,
+        Ok(_) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some("Properties must be an object".to_string()),
+                }),
+            ));
+        }
+        Err(e) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(e),
+                }),
+            ));
+        }
+    };
+    
+    // Add metadata
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    
+    properties.insert("doc_type".to_string(), DocValue::U8(doc_type as u8));
+    properties.insert("created_at".to_string(), DocValue::U64(timestamp));
+    properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
+    properties.insert("children".to_string(), DocValue::Array(Vec::new()));
+    
+    // Create document in storage
+    let mut storage_guard = storage.lock().unwrap();
+    match storage_guard.create_document(doc_id, properties.clone()) {
+        Ok(()) => {
+            // Add to parent if specified
+            if let Some(parent_id_str) = &request.parent_id {
+                if let Ok(parent_id) = parent_id_str.parse::<ID16>() {
+                    if let Err(e) = storage_guard.add_child_relationship(parent_id, doc_id) {
+                        // Document created but couldn't add to parent - log warning but continue
+                        tracing::warn!("Failed to add document {} to parent {}: {}", doc_id, parent_id, e);
+                    }
+                }
+            }
+            
+            // Convert properties back to JSON for response
+            let json_properties = if let DocValue::Object(obj) = &DocValue::Object(Box::new(properties)) {
+                let mut json_obj = serde_json::Map::new();
+                for (key, value) in obj.iter() {
+                    json_obj.insert(key.clone(), doc_value_to_json(value));
+                }
+                Value::Object(json_obj)
+            } else {
+                json!({})
+            };
+            
+            let document_info = DocumentInfo {
+                id: doc_id.to_string(),
+                doc_type: doc_type_to_string(doc_type),
+                parent_id: request.parent_id,
+                properties: json_properties,
+                created_at: timestamp.to_string(),
+                updated_at: timestamp.to_string(),
+                child_count: 0,
+            };
+            
+            Ok((
+                StatusCode::CREATED,
+                Json(ApiResponse {
+                    success: true,
+                    data: Some(document_info),
+                    message: Some("Document created successfully".to_string()),
+                    error: None,
+                }),
+            ))
+        }
+        Err(e) => Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                message: None,
+                error: Some(e),
+            }),
+        )),
+    }
 }
 
+/// Get a document by ID
 pub async fn get_document(
+    State(storage): State<SharedStorage>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
-    let document = DocumentInfo {
-        id: id.clone(),
-        collection_id: Some("col_1".to_string()),
-        data: json!({
-            "title": "Sample Document",
-            "content": "This is a sample document",
-            "tags": ["sample", "demo"]
-        }),
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T01:00:00Z".to_string(),
+    // Parse document ID
+    let doc_id = match id.parse::<ID16>() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(Json(ApiResponse {
+                success: false,
+                data: None,
+                message: None,
+                error: Some("Invalid document ID format".to_string()),
+            }));
+        }
     };
-
-    Ok(Json(ApiResponse {
-        success: true,
-        data: Some(document),
-        message: None,
-    }))
+    
+    // Get document from storage
+    let storage_guard = storage.lock().unwrap();
+    match storage_guard.get_document(&doc_id) {
+        Some(properties) => {
+            // Extract metadata
+            let doc_type = properties.get("doc_type")
+                .and_then(|v| match v {
+                    DocValue::U8(t) => Some(*t),
+                    _ => None,
+                })
+                .unwrap_or(DocumentType::Generic as u8);
+            
+            let created_at = properties.get("created_at")
+                .and_then(|v| match v {
+                    DocValue::U64(t) => Some(*t),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            
+            let updated_at = properties.get("modified_at")
+                .and_then(|v| match v {
+                    DocValue::U64(t) => Some(*t),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            
+            let child_count = properties.get("children")
+                .and_then(|v| match v {
+                    DocValue::Array(arr) => Some(arr.len() as u16),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            
+            // Convert properties to JSON (excluding metadata)
+            let mut json_properties = serde_json::Map::new();
+            for (key, value) in properties.iter() {
+                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
+                    json_properties.insert(key.clone(), doc_value_to_json(value));
+                }
+            }
+            
+            let document_info = DocumentInfo {
+                id: doc_id.to_string(),
+                doc_type: doc_type_to_string(unsafe { std::mem::transmute(doc_type) }),
+                parent_id: None, // TODO: Extract from parent relationships
+                properties: Value::Object(json_properties),
+                created_at: created_at.to_string(),
+                updated_at: updated_at.to_string(),
+                child_count,
+            };
+            
+            Ok(Json(ApiResponse {
+                success: true,
+                data: Some(document_info),
+                message: None,
+                error: None,
+            }))
+        }
+        None => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: None,
+            error: Some("Document not found".to_string()),
+        })),
+    }
 }
 
+/// Update a document (replace properties)
 pub async fn update_document(
+    State(storage): State<SharedStorage>,
     Path(id): Path<String>,
-    JsonExtractor(payload): JsonExtractor<Value>,
+    Json(request): Json<UpdateDocumentRequest>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
-    let document = DocumentInfo {
-        id: id.clone(),
-        collection_id: Some("col_1".to_string()),
-        data: payload,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T02:00:00Z".to_string(),
+    // Parse document ID
+    let doc_id = match id.parse::<ID16>() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(Json(ApiResponse {
+                success: false,
+                data: None,
+                message: None,
+                error: Some("Invalid document ID format".to_string()),
+            }));
+        }
     };
-
-    Ok(Json(ApiResponse {
-        success: true,
-        data: Some(document),
-        message: Some("Document updated successfully".to_string()),
-    }))
+    
+    // Get mutable reference to document
+    let mut storage_guard = storage.lock().unwrap();
+    match storage_guard.get_document_mut(&doc_id) {
+        Some(properties) => {
+            // Convert new properties
+            let new_properties = match json_to_doc_value(&request.properties) {
+                Ok(DocValue::Object(obj)) => *obj,
+                Ok(_) => {
+                    return Ok(Json(ApiResponse {
+                        success: false,
+                        data: None,
+                        message: None,
+                        error: Some("Properties must be an object".to_string()),
+                    }));
+                }
+                Err(e) => {
+                    return Ok(Json(ApiResponse {
+                        success: false,
+                        data: None,
+                        message: None,
+                        error: Some(e),
+                    }));
+                }
+            };
+            
+            // Preserve metadata
+            let doc_type = properties.get("doc_type").cloned();
+            let created_at = properties.get("created_at").cloned();
+            let children = properties.get("children").cloned();
+            
+            // Create a new map with the new properties and preserved metadata
+            let mut new_map = new_properties;
+            
+            // Restore metadata
+            if let Some(dt) = doc_type {
+                new_map.insert("doc_type".to_string(), dt);
+            }
+            if let Some(ca) = created_at {
+                new_map.insert("created_at".to_string(), ca);
+            }
+            if let Some(ch) = children {
+                new_map.insert("children".to_string(), ch);
+            }
+            
+            // Replace the entire properties map
+            *properties = new_map;
+            
+            // Update modified timestamp
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
+            
+            // Convert properties back to JSON for response
+            let mut json_properties = serde_json::Map::new();
+            for (key, value) in properties.iter() {
+                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
+                    json_properties.insert(key.clone(), doc_value_to_json(value));
+                }
+            }
+            
+            let document_info = DocumentInfo {
+                id: doc_id.to_string(),
+                doc_type: "generic".to_string(), // TODO: Extract from doc_type
+                parent_id: None,
+                properties: Value::Object(json_properties),
+                created_at: "0".to_string(), // TODO: Extract from created_at
+                updated_at: timestamp.to_string(),
+                child_count: 0, // TODO: Extract from children
+            };
+            
+            Ok(Json(ApiResponse {
+                success: true,
+                data: Some(document_info),
+                message: Some("Document updated successfully".to_string()),
+                error: None,
+            }))
+        }
+        None => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: None,
+            error: Some("Document not found".to_string()),
+        })),
+    }
 }
 
-pub async fn patch_document(
-    Path(id): Path<String>,
-    JsonExtractor(payload): JsonExtractor<Value>,
-) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
-    let document = DocumentInfo {
-        id: id.clone(),
-        collection_id: Some("col_1".to_string()),
-        data: payload,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T02:30:00Z".to_string(),
-    };
-
-    Ok(Json(ApiResponse {
-        success: true,
-        data: Some(document),
-        message: Some("Document patched successfully".to_string()),
-    }))
-}
-
+/// Delete a document
 pub async fn delete_document(
+    State(storage): State<SharedStorage>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), StatusCode> {
-    Ok((
-        StatusCode::NO_CONTENT,
-        Json(ApiResponse {
-            success: true,
-            data: None,
-            message: Some(format!("Document {} deleted successfully", id)),
-        }),
-    ))
+    // Parse document ID
+    let doc_id = match id.parse::<ID16>() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some("Invalid document ID format".to_string()),
+                }),
+            ));
+        }
+    };
+    
+    // Remove document from storage
+    let mut storage_guard = storage.lock().unwrap();
+    match storage_guard.remove_document(&doc_id) {
+        Ok(()) => Ok((
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: None,
+                message: Some(format!("Document {} deleted successfully", id)),
+                error: None,
+            }),
+        )),
+        Err(e) => Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                message: None,
+                error: Some(e.to_string()),
+            }),
+        )),
+    }
 }
 
+/// Partially update document content (merge with existing)
+pub async fn patch_document(
+    State(storage): State<SharedStorage>,
+    Path(id): Path<String>,
+    Json(request): Json<UpdateDocumentRequest>,
+) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
+    // Parse document ID
+    let doc_id = match id.parse::<ID16>() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(Json(ApiResponse {
+                success: false,
+                data: None,
+                message: None,
+                error: Some("Invalid document ID format".to_string()),
+            }));
+        }
+    };
+    
+    // Get mutable reference to document
+    let mut storage_guard = storage.lock().unwrap();
+    match storage_guard.get_document_mut(&doc_id) {
+        Some(properties) => {
+            // Convert new properties
+            let new_properties = match json_to_doc_value(&request.properties) {
+                Ok(DocValue::Object(obj)) => *obj,
+                Ok(_) => {
+                    return Ok(Json(ApiResponse {
+                        success: false,
+                        data: None,
+                        message: None,
+                        error: Some("Properties must be an object".to_string()),
+                    }));
+                }
+                Err(e) => {
+                    return Ok(Json(ApiResponse {
+                        success: false,
+                        data: None,
+                        message: None,
+                        error: Some(e.to_string()),
+                    }));
+                }
+            };
+            
+            // Merge new properties with existing ones (patch operation)
+            // First collect the properties to avoid borrowing issues
+            let mut props_to_insert = Vec::new();
+            for (key, value) in new_properties.iter() {
+                if !["doc_type", "created_at", "children"].contains(&key.as_str()) {
+                    props_to_insert.push((key.clone(), value.clone()));
+                }
+            }
+            
+            // Now insert them
+            for (key, value) in props_to_insert {
+                properties.insert(key, value);
+            }
+            
+            // Update modified timestamp
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
+            
+            // Convert properties back to JSON for response
+            let mut json_properties = serde_json::Map::new();
+            for (key, value) in properties.iter() {
+                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
+                    json_properties.insert(key.clone(), doc_value_to_json(value));
+                }
+            }
+            
+            let document_info = DocumentInfo {
+                id: doc_id.to_string(),
+                doc_type: "generic".to_string(), // TODO: Extract from doc_type
+                parent_id: None,
+                properties: Value::Object(json_properties),
+                created_at: "0".to_string(), // TODO: Extract from created_at
+                updated_at: timestamp.to_string(),
+                child_count: 0, // TODO: Extract from children
+            };
+            
+            Ok(Json(ApiResponse {
+                success: true,
+                data: Some(document_info),
+                message: Some("Document patched successfully".to_string()),
+                error: None,
+            }))
+        }
+        None => Ok(Json(ApiResponse {
+            success: false,
+            data: None,
+            message: None,
+            error: Some("Document not found".to_string()),
+        })),
+    }
+}
+
+/// List all documents with pagination support
 pub async fn list_documents(
     Query(params): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<Vec<DocumentInfo>>>, StatusCode> {
     let documents = vec![
         DocumentInfo {
             id: "doc_1".to_string(),
-            collection_id: Some("col_1".to_string()),
-            data: json!({"title": "First Document", "type": "text"}),
+            doc_type: "text".to_string(),
+            parent_id: None,
+            properties: json!({"title": "First Document", "type": "text"}),
             created_at: "2024-01-01T00:00:00Z".to_string(),
             updated_at: "2024-01-01T00:00:00Z".to_string(),
+            child_count: 0,
         },
         DocumentInfo {
             id: "doc_2".to_string(),
-            collection_id: Some("col_1".to_string()),
-            data: json!({"title": "Second Document", "type": "image"}),
+            doc_type: "image".to_string(),
+            parent_id: None,
+            properties: json!({"title": "Second Document", "type": "image"}),
             created_at: "2024-01-01T01:00:00Z".to_string(),
             updated_at: "2024-01-01T01:00:00Z".to_string(),
+            child_count: 0,
         },
     ];
 
@@ -286,10 +856,12 @@ pub async fn list_documents(
         success: true,
         data: Some(paginated),
         message: None,
+        error: None,
     }))
 }
 
 // Delta Handlers
+/// Apply multiple delta operations to a collection
 pub async fn apply_collection_deltas(
     Path(id): Path<String>,
     JsonExtractor(deltas): JsonExtractor<Vec<Value>>,
@@ -312,10 +884,12 @@ pub async fn apply_collection_deltas(
             success: true,
             data: Some(processed_deltas),
             message: Some("Deltas applied to collection successfully".to_string()),
+            error: None,
         }),
     ))
 }
 
+/// Apply multiple delta operations to a document
 pub async fn apply_document_deltas(
     Path(id): Path<String>,
     JsonExtractor(deltas): JsonExtractor<Vec<Value>>,
@@ -338,10 +912,12 @@ pub async fn apply_document_deltas(
             success: true,
             data: Some(processed_deltas),
             message: Some("Deltas applied to document successfully".to_string()),
+            error: None,
         }),
     ))
 }
 
+/// Retrieve all delta operations for a collection
 pub async fn get_collection_deltas(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeltaInfo>>>, StatusCode> {
@@ -359,9 +935,11 @@ pub async fn get_collection_deltas(
         success: true,
         data: Some(deltas),
         message: None,
+        error: None,
     }))
 }
 
+/// Retrieve all delta operations for a document
 pub async fn get_document_deltas(
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeltaInfo>>>, StatusCode> {
@@ -379,9 +957,11 @@ pub async fn get_document_deltas(
         success: true,
         data: Some(deltas),
         message: None,
+        error: None,
     }))
 }
 
+/// Retrieve all delta operations since a specific timestamp
 pub async fn get_deltas_since(
     Path(timestamp): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<DeltaInfo>>>, StatusCode> {
@@ -406,10 +986,12 @@ pub async fn get_deltas_since(
         success: true,
         data: Some(deltas),
         message: Some(format!("Deltas since {}", timestamp)),
+        error: None,
     }))
 }
 
 // System Handlers
+/// Health check endpoint for monitoring system status
 pub async fn health_check() -> Result<Json<HealthResponse>, StatusCode> {
     Ok(Json(HealthResponse {
         status: "healthy".to_string(),
@@ -418,20 +1000,63 @@ pub async fn health_check() -> Result<Json<HealthResponse>, StatusCode> {
     }))
 }
 
+/// System information endpoint providing capabilities and version details
 pub async fn system_info() -> Result<Json<InfoResponse>, StatusCode> {
     Ok(Json(InfoResponse {
         name: "Massive Graph".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         capabilities: vec![
-            "real-time-sync".to_string(),
-            "delta-operations".to_string(),
-            "document-database".to_string(),
-            "graph-queries".to_string(),
+            "Real-time synchronisation".to_string(),
+            "Delta operations".to_string(),
+            "Graph relationships".to_string(),
+            "WebSocket subscriptions".to_string(),
         ],
         protocols: vec![
             "HTTP/1.1".to_string(),
+            "HTTP/2".to_string(),
             "WebSocket".to_string(),
-            "QUIC".to_string(),
         ],
     }))
+}
+
+/// Root handler that provides API information
+pub async fn root_handler() -> Json<serde_json::Value> {
+    Json(json!({
+        "name": "Massive Graph API",
+        "version": env!("CARGO_PKG_VERSION"),
+        "description": "Real-time graph database for collaborative AI",
+        "endpoints": {
+            "health": "/api/v1/health",
+            "info": "/api/v1/info",
+            "collections": "/api/v1/collections",
+            "documents": "/api/v1/documents",
+            "deltas": "/api/v1/deltas",
+            "websockets": {
+                "collections": "/ws/collections",
+                "documents": "/ws/documents"
+            }
+        },
+        "documentation": "https://docs.massive-graph.dev"
+    }))
+}
+
+// WebSocket handlers - placeholder implementations for now
+/// WebSocket handler for subscribing to all collection changes
+pub async fn websocket_collections_handler() -> &'static str {
+    "WebSocket endpoint for all collection changes - not yet implemented"
+}
+
+/// WebSocket handler for subscribing to specific collection changes
+pub async fn websocket_collection_handler() -> &'static str {
+    "WebSocket endpoint for specific collection changes - not yet implemented"
+}
+
+/// WebSocket handler for subscribing to all document changes
+pub async fn websocket_documents_handler() -> &'static str {
+    "WebSocket endpoint for all document changes - not yet implemented"
+}
+
+/// WebSocket handler for subscribing to specific document changes
+pub async fn websocket_document_handler() -> &'static str {
+    "WebSocket endpoint for specific document changes - not yet implemented"
 }
