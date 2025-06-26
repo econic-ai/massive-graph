@@ -3,7 +3,6 @@
 //! This module defines all error types used throughout the system,
 //! optimized for zero-cost error propagation and clear diagnostics.
 
-use std::fmt;
 use thiserror::Error;
 
 /// Main result type used throughout the crate
@@ -106,7 +105,12 @@ pub enum NetworkError {
 
     /// Message too large
     #[error("Message too large: {size} bytes (max: {max_size})")]
-    MessageTooLarge { size: usize, max_size: usize },
+    MessageTooLarge { 
+        /// Actual message size in bytes
+        size: usize, 
+        /// Maximum allowed message size in bytes
+        max_size: usize 
+    },
 
     /// Invalid message format
     #[error("Invalid message format: {0}")]
@@ -126,11 +130,19 @@ pub enum DeltaError {
 
     /// Delta sequence error
     #[error("Delta sequence error: expected {expected}, got {actual}")]
-    SequenceError { expected: u64, actual: u64 },
+    SequenceError { 
+        /// Expected sequence number
+        expected: u64, 
+        /// Actual sequence number received
+        actual: u64 
+    },
 
     /// Delta too large
     #[error("Delta too large: {size} bytes")]
-    TooLarge { size: usize },
+    TooLarge { 
+        /// Size of the delta in bytes
+        size: usize 
+    },
 }
 
 /// Graph operation errors
@@ -138,11 +150,17 @@ pub enum DeltaError {
 pub enum GraphError {
     /// Node not found
     #[error("Node not found: {id}")]
-    NodeNotFound { id: String },
+    NodeNotFound { 
+        /// ID of the missing node
+        id: String 
+    },
 
     /// Edge not found
     #[error("Edge not found: {id}")]
-    EdgeNotFound { id: String },
+    EdgeNotFound { 
+        /// ID of the missing edge
+        id: String 
+    },
 
     /// Cycle detected where not allowed
     #[error("Cycle detected in graph")]
@@ -154,11 +172,19 @@ pub enum GraphError {
 
     /// Property not found
     #[error("Property not found: {key}")]
-    PropertyNotFound { key: String },
+    PropertyNotFound { 
+        /// Key of the missing property
+        key: String 
+    },
 
     /// Type mismatch
     #[error("Type mismatch: expected {expected}, got {actual}")]
-    TypeMismatch { expected: String, actual: String },
+    TypeMismatch { 
+        /// Expected type name
+        expected: String, 
+        /// Actual type name received
+        actual: String 
+    },
 }
 
 /// Serialization/deserialization errors
