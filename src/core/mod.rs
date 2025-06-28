@@ -29,4 +29,4 @@ pub use types::delta::{Delta, Operation, OpType};
 pub use documents::{RootDocument, BinaryDocument, TextDocument, TextFileDocument, GraphDocument, NodeDocument, EdgeDocument};
 
 // Re-export delta processor
-pub use delta_processor::{DeltaProcessor, DocumentStorage};
+pub use delta_processor::apply_delta;
