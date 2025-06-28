@@ -87,9 +87,12 @@ async fn main() -> Result<()> {
     validate_system_requirements(&config)?;
 
     // Initialize storage
-    let storage = massive_graph::storage::create_shared_storage(&config.storage)
+    let storage = massive_graph::storage::create_storage(&config.storage)
         .map_err(|e| massive_graph::Error::config(format!("Storage initialization failed: {}", e)))?;
     info!("Storage initialized: {:?}", config.storage.storage_type);
+
+    // Wrap storage in Arc for sharing between servers (reads are lock-free)
+    let storage = Arc::new(storage);
 
     // Create shared configuration
     let config = Arc::new(config);
@@ -256,7 +259,7 @@ struct ServerHandle {
 }
 
 /// Start all servers concurrently
-async fn start_servers(config: Arc<Config>, storage: massive_graph::storage::SharedStorage) -> Result<Vec<ServerHandle>> {
+async fn start_servers(config: Arc<Config>, storage: Arc<massive_graph::storage::MemStore>) -> Result<Vec<ServerHandle>> {
     let mut handles = Vec::new();
 
     // Start HTTP server
@@ -316,7 +319,7 @@ async fn start_servers(config: Arc<Config>, storage: massive_graph::storage::Sha
 }
 
 /// Start HTTP server
-async fn start_http_server(config: Arc<Config>, storage: massive_graph::storage::SharedStorage) -> Result<()> {
+async fn start_http_server(config: Arc<Config>, storage: Arc<massive_graph::storage::MemStore>) -> Result<()> {
     info!("Starting HTTP server on {}", config.server.http_addr);
     
     // Configure server address
