@@ -2,7 +2,6 @@
 
 use crate::core::config::{StorageConfig, StorageType};
 use crate::storage::MemStore;
-use std::sync::{Arc, Mutex};
 
 /// Storage factory error
 #[derive(Debug)]
@@ -28,9 +27,6 @@ impl std::fmt::Display for StorageFactoryError {
 
 impl std::error::Error for StorageFactoryError {}
 
-/// Storage wrapper for thread-safe access
-pub type SharedStorage = Arc<Mutex<MemStore>>;
-
 /// Create a storage implementation based on configuration
 pub fn create_storage(config: &StorageConfig) -> Result<MemStore, StorageFactoryError> {
     match config.storage_type {
@@ -49,12 +45,6 @@ pub fn create_storage(config: &StorageConfig) -> Result<MemStore, StorageFactory
     }
 }
 
-/// Create a shared storage implementation based on configuration
-pub fn create_shared_storage(config: &StorageConfig) -> Result<SharedStorage, StorageFactoryError> {
-    let storage = create_storage(config)?;
-    Ok(Arc::new(Mutex::new(storage)))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,18 +58,6 @@ mod tests {
         };
         
         let storage = create_storage(&config).unwrap();
-        assert_eq!(storage.document_count(), 0);
-    }
-
-    #[test]
-    fn test_shared_memory_storage_creation() {
-        let config = StorageConfig {
-            storage_type: StorageType::Memory,
-            ..Default::default()
-        };
-        
-        let shared_storage = create_shared_storage(&config).unwrap();
-        let storage = shared_storage.lock().unwrap();
         assert_eq!(storage.document_count(), 0);
     }
 

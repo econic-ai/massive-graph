@@ -1,359 +1,324 @@
-/// In-memory document store implementing the unified document architecture.
+/// In-memory document store with sequential heap layout and HashMap indexing.
 /// 
-/// The Store maintains:
-/// - A list of root documents (top-level namespaces)
-/// - An index mapping all document IDs to their containing root document
+/// This implementation uses a growing heap approach:
+/// - Documents stored sequentially in memory segments
+/// - HashMap provides O(1) lookup into heap positions
+/// - Cache rebuilding means reconstructing HashMap from heap data
+/// - Each root document tree can be rebuilt independently
 /// 
-/// This design treats the store as a simple coordination layer above the
-/// unified document model, where root documents contain all other documents
-/// as children in a hierarchical structure.
+/// Architecture:
+/// - document_heap: Sequential storage of all document data
+/// - header_index: HashMap pointing to header positions in heap
+/// - data_index: HashMap pointing to data positions in heap
+/// - root_documents: Set of root document IDs for tree operations
+/// 
+/// Performance characteristics:
+/// - Reads: O(1) HashMap lookup into sequential memory
+/// - Writes: O(1) append to heap + HashMap update
+/// - Cache rebuild: O(n) scan of heap to reconstruct HashMap
+/// - Memory: Optimal cache locality due to sequential layout
 
-use crate::core::types::document::{Value, AdaptiveMap};
 use crate::core::types::ID16;
-use crate::core::documents::RootDocument;
-use crate::core::delta_processor::DocumentStorage;
+use crate::core::types::document::{Value, AdaptiveMap, DocumentHeader, Document, DocumentType, AppendOnlyStream, BloomFilter};
+use crate::core::types::delta::{Delta, Operation};
+use crate::storage::ZeroCopyDocumentStorage;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
+use dashmap::DashMap;
 
-/// In-memory document store for high-performance operations.
+/// In-memory document store with sequential heap layout and HashMap indexing.
 /// 
-/// MemStore provides a fast, lock-free storage implementation optimized for
-/// real-time collaborative applications. It maintains two key data structures:
-/// - `root_documents`: List of top-level document containers
-/// - `document_index`: Fast lookup from any document ID to its root document
+/// This implementation uses a growing heap approach:
+/// - Documents stored sequentially in memory segments
+/// - HashMap provides O(1) lookup into heap positions
+/// - Cache rebuilding means reconstructing HashMap from heap data
+/// - Each root document tree can be rebuilt independently
 /// 
-/// This enables O(1) document lookup while maintaining the hierarchical
-/// structure where all documents exist as children within root documents.
+/// Architecture:
+/// - document_heap: Sequential storage of all document data
+/// - header_index: HashMap pointing to header positions in heap
+/// - data_index: HashMap pointing to data positions in heap
+/// - root_documents: Set of root document IDs for tree operations
 /// 
-/// # Performance Characteristics
-/// - Document access: O(1)
-/// - Property updates: Lock-free using DashMap
-/// - Memory usage: Optimized with cache-aligned structures
-/// - Concurrency: Supports millions of operations per second
-/// 
-/// # Thread Safety
-/// MemStore is thread-safe and can be shared across threads using Arc<Mutex<MemStore>>
-/// or similar synchronization primitives.
+/// Performance characteristics:
+/// - Reads: O(1) HashMap lookup into sequential memory
+/// - Writes: O(1) append to heap + HashMap update
+/// - Cache rebuild: O(n) scan of heap to reconstruct HashMap
+/// - Memory: Optimal cache locality due to sequential layout
 #[derive(Debug)]
 pub struct MemStore {
-    /// List of root document IDs (top-level containers)
-    root_documents: Vec<ID16>,
+    // ===== SEQUENTIAL HEAP STORAGE =====
+    /// Sequential heap of document headers - grows append-only
+    header_heap: Vec<u8>,
     
-    /// Index mapping document ID -> root document ID for fast lookup
-    document_index: HashMap<ID16, ID16>,
+    /// Sequential heap of document data segments - grows append-only  
+    data_heap: Vec<u8>,
     
-    /// Storage for all documents (root and children)
-    /// In future this will be replaced with persistent storage
-    documents: HashMap<ID16, AdaptiveMap<String, Value>>,
+    // ===== HASH INDEX FOR FAST LOOKUP =====
+    /// Index mapping document ID to position in header_heap
+    header_index: HashMap<ID16, (usize, usize)>, // (offset, length)
+    
+    /// Index mapping document ID to position in data_heap
+    data_index: HashMap<ID16, (usize, usize)>, // (offset, length)
+    
+    // ===== ROOT DOCUMENT MANAGEMENT =====
+    /// Root documents for tree-based operations
+    root_documents: DashMap<ID16, AtomicBool>,
+    
+    // ===== CACHE MANAGEMENT =====
+    /// Flag indicating indexes need rebuilding from heap
+    cache_dirty: AtomicBool,
+    
+    // ===== DELTA STREAMS (SEPARATE CONCERN) =====
+    /// Per-document delta streams for audit trails
+    /// This is separate from storage - just tracking which documents have delta history
+    delta_streams: DashMap<ID16, AppendOnlyStream<ID16>>,
 }
 
 impl MemStore {
-    /// Create a new empty store.
+    /// Create a new empty memory store.
     pub fn new() -> Self {
         Self {
-            root_documents: Vec::new(),
-            document_index: HashMap::new(),
-            documents: HashMap::new(),
+            header_heap: Vec::new(),
+            data_heap: Vec::new(),
+            header_index: HashMap::new(),
+            data_index: HashMap::new(),
+            root_documents: DashMap::new(),
+            cache_dirty: AtomicBool::new(false),
+            delta_streams: DashMap::new(),
         }
     }
     
-    /// Create a new root document container.
-    /// 
-    /// Root documents serve as top-level namespaces that contain
-    /// other documents as children. Examples: user workspaces,
-    /// project containers, organization boundaries.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `name` - Human-readable name for the root document
-    /// 
-    /// # Returns
-    /// 
-    /// ID of the created root document
-    pub fn create_root_document(&mut self, name: &str) -> ID16 {
-        let root_id = ID16::random();
-        
-        // Create root document using the RootDocument builder
-        let properties = RootDocument::new(name, None);
-        
-        // Store the document
-        self.documents.insert(root_id, properties);
-        
-        // Add to root documents list
-        self.root_documents.push(root_id);
-        
-        // Index the root document to itself
-        self.document_index.insert(root_id, root_id);
-        
-        root_id
+    /// Get the current timestamp in nanoseconds since epoch.
+    fn current_timestamp() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64
     }
     
-    /// Create a new root document container with description.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `name` - Human-readable name for the root document
-    /// * `description` - Description of the root document's purpose
-    /// 
-    /// # Returns
-    /// 
-    /// ID of the created root document
-    pub fn create_root_document_with_description(&mut self, name: &str, description: &str) -> ID16 {
-        let root_id = ID16::random();
-        
-        // Create root document using the RootDocument builder
-        let properties = RootDocument::new(name, Some(description));
-        
-        // Store the document
-        self.documents.insert(root_id, properties);
-        
-        // Add to root documents list
-        self.root_documents.push(root_id);
-        
-        // Index the root document to itself
-        self.document_index.insert(root_id, root_id);
-        
-        root_id
+    /// Append a delta to the log (lock-free for maximum throughput).
+    /// Returns the sequence number assigned to this delta.
+    fn append_delta(&self, delta: Delta) -> Result<u64, String> {
+        // TODO: Implement lock-free append to operation log
+        // This should:
+        // 1. Get next sequence number atomically
+        // 2. Enqueue delta to lock-free queue
+        // 3. Return sequence number for tracking
+        // 4. Never block - pure lock-free operation
+        todo!("Implement lock-free delta append")
     }
     
-    /// Add a document to a root document container.
-    /// 
-    /// This adds the document as a child of the specified root document
-    /// and updates the index for fast lookup.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `root_id` - ID of the root document to contain this document
-    /// * `document_id` - ID of the document to add
-    /// * `document_properties` - Properties of the document to store
-    /// 
-    /// # Returns
-    /// 
-    /// Success or error if root document doesn't exist
-    pub fn add_document(
-        &mut self, 
-        root_id: ID16, 
-        document_id: ID16, 
-        document_properties: AdaptiveMap<String, Value>
-    ) -> Result<(), &'static str> {
-        // Verify root document exists
-        if !self.documents.contains_key(&root_id) {
-            return Err("Root document does not exist");
-        }
+    /// Apply a delta to the document cache (optimistic, may fail due to races).
+    /// This is unsafe because it accepts that races may cause cache corruption,
+    /// which will be detected and recovered by rebuilding from the authoritative log.
+    unsafe fn apply_delta_to_cache(&self, delta: &Delta) {
+        // TODO: Implement optimistic cache updates
+        // This should:
+        // 1. Apply all operations in the delta to headers_cache and data_segments
+        // 2. Accept that concurrent access may cause corruption
+        // 3. Use zero-copy techniques where possible
+        // 4. Update cache without any locks (pure optimistic)
+        todo!("Implement optimistic delta application to cache")
+    }
+    
+    /// Check if the cache appears corrupted and needs rebuilding.
+    fn is_cache_corrupted(&self) -> bool {
+        // TODO: Implement cache corruption detection
+        // This could check:
+        // 1. Document count consistency between headers and data
+        // 2. Parent-child relationship integrity
+        // 3. Version number consistency
+        // 4. Cache dirty flag
+        // 5. Checksum validation on critical documents
+        todo!("Implement cache corruption detection")
+    }
+    
+    /// Rebuild the entire cache from the operation log.
+    /// This is the recovery mechanism when cache corruption is detected.
+    fn rebuild_cache_from_log(&self) -> Result<(), String> {
+        // TODO: Implement cache rebuild
+        // This should:
+        // 1. Create new empty cache structures
+        // 2. Iterate through all deltas in the operation_log queue
+        // 3. Apply each delta in sequence to rebuild consistent state
+        // 4. Atomically replace corrupted cache with rebuilt version
+        // 5. Clear cache_dirty flag
+        todo!("Implement cache rebuild from authoritative log")
+    }
+    
+    /// Serialize properties into binary format for zero-copy storage.
+    fn serialize_properties(properties: &AdaptiveMap<String, Value>) -> Vec<u8> {
+        // TODO: Implement proper binary serialization
+        // This should create a compact binary format that can be:
+        // 1. Parsed without copying (zero-copy views)
+        // 2. Efficiently transmitted over network
+        // 3. Memory-mapped for direct access
+        todo!("Implement binary property serialization for zero-copy access")
+    }
+    
+    /// Create a document view from header and data (zero-copy).
+    /// Returns a Document that references the stored data without copying.
+    fn create_document_view<'a>(header: &'a DocumentHeader, data: &'a [u8]) -> Document<'a> {
+        // TODO: Implement zero-copy document view construction
+        // This should create Document<'_> that references the stored data
+        // The lifetime is tied to the storage, not 'static
+        todo!("Implement zero-copy document view creation")
+    }
+    
+    /// Create a Delta from operations with pre-serialized binary data.
+    /// This ensures Deltas are immutable and ready for zero-copy network propagation.
+    fn create_delta(
+        document_id: ID16,
+        operations: Vec<Operation>,
+        version: u64,
+    ) -> Delta {
+        // TODO: Implement Delta creation with binary serialization
+        // This should:
+        // 1. Serialize operations into binary format for network transmission
+        // 2. Create immutable Delta with all required metadata
+        // 3. Ensure zero-copy propagation capability
+        todo!("Implement Delta creation with binary serialization")
+    }
+    
+    // ===== CORE HEAP OPERATIONS =====
+    
+    /// Append a document header to the heap and update the index.
+    fn append_header_to_heap(&mut self, id: ID16, header: &DocumentHeader) -> Result<(), String> {
+        let start_offset = self.header_heap.len();
         
-        // Store the document
-        self.documents.insert(document_id, document_properties);
+        // Serialize header to bytes (TODO: implement proper serialization)
+        let header_bytes = self.serialize_header(header);
         
-        // Add to root document's children
-        if let Some(root_doc) = self.documents.get_mut(&root_id) {
-            if let Some(Value::Array(ref mut children)) = root_doc.get_mut("children") {
-                children.push(Value::Reference(document_id));
-            }
-            
-            // Update root document modification time
-            root_doc.insert("modified_at".to_string(), Value::U64(
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as u64
-            ));
-        }
+        // Append to heap
+        self.header_heap.extend_from_slice(&header_bytes);
         
-        // Index the document to its root
-        self.document_index.insert(document_id, root_id);
+        // Update index
+        let length = header_bytes.len();
+        self.header_index.insert(id, (start_offset, length));
         
         Ok(())
     }
     
-    /// Find which root document contains a given document.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `document_id` - ID of the document to locate
-    /// 
-    /// # Returns
-    /// 
-    /// Root document ID, or None if document not found
-    pub fn find_root_for_document(&self, document_id: &ID16) -> Option<ID16> {
-        self.document_index.get(document_id).copied()
+    /// Append document data to the heap and update the index.
+    fn append_data_to_heap(&mut self, id: ID16, data: &[u8]) -> Result<(), String> {
+        let start_offset = self.data_heap.len();
+        
+        // Append to heap
+        self.data_heap.extend_from_slice(data);
+        
+        // Update index
+        let length = data.len();
+        self.data_index.insert(id, (start_offset, length));
+        
+        Ok(())
     }
     
-    /// Get all root document IDs.
-    /// 
-    /// # Returns
-    /// 
-    /// Vector of all root document IDs
-    pub fn get_root_documents(&self) -> &Vec<ID16> {
-        &self.root_documents
-    }
-    
-    /// Count total number of documents in the store.
-    /// 
-    /// # Returns
-    /// 
-    /// Total document count including root documents
-    pub fn document_count(&self) -> usize {
-        self.documents.len()
-    }
-    
-    /// Remove a document from the store.
-    /// 
-    /// This removes the document from storage, cleans up parent-child
-    /// relationships, and updates the index.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `document_id` - ID of the document to remove
-    /// 
-    /// # Returns
-    /// 
-    /// Success or error if document doesn't exist
-    pub fn remove_document(&mut self, document_id: &ID16) -> Result<(), &'static str> {
-        // Find the root document containing this document
-        let root_id = self.document_index.get(document_id).copied();
-        
-        // Remove from documents storage
-        if self.documents.remove(document_id).is_none() {
-            return Err("Document not found");
-        }
-        
-        // Remove from document index
-        self.document_index.remove(document_id);
-        
-        // Remove from parent's children list if it has a parent
-        if let Some(root_id) = root_id {
-            if root_id != *document_id { // Don't try to remove root from itself
-                if let Some(root_doc) = self.documents.get_mut(&root_id) {
-                    if let Some(Value::Array(ref mut children)) = root_doc.get_mut("children") {
-                        children.retain(|child| {
-                            if let Value::Reference(child_id) = child {
-                                *child_id != *document_id
-                            } else {
-                                true
-                            }
-                        });
-                    }
-                    
-                    // Update root document modification time
-                    root_doc.insert("modified_at".to_string(), Value::U64(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos() as u64
-                    ));
-                }
+    /// Get document header from heap using index.
+    pub fn get_header_from_heap(&self, id: &ID16) -> Option<&DocumentHeader> {
+        if let Some((offset, length)) = self.header_index.get(id) {
+            if *offset + *length <= self.header_heap.len() {
+                // TODO: Deserialize header from bytes at offset
+                // For now, return None until serialization is implemented
+                None
             } else {
-                // Removing a root document - remove from root documents list
-                self.root_documents.retain(|root| *root != *document_id);
-            }
-        }
-        
-        Ok(())
-    }
-}
-
-/// Implementation of DocumentStorage trait for MemStore.
-/// 
-/// This allows MemStore to be used with the storage-agnostic delta processor.
-/// The delta processor can apply operations to any storage implementation
-/// that provides these basic document operations.
-impl DocumentStorage for MemStore {
-    /// Get a document by ID.
-    fn get_document(&self, id: &ID16) -> Option<&AdaptiveMap<String, Value>> {
-        self.documents.get(id)
-    }
-    
-    /// Get a mutable reference to a document by ID.
-    fn get_document_mut(&mut self, id: &ID16) -> Option<&mut AdaptiveMap<String, Value>> {
-        self.documents.get_mut(id)
-    }
-    
-    /// Create a new document with the given ID and properties.
-    fn create_document(&mut self, id: ID16, properties: AdaptiveMap<String, Value>) -> Result<(), String> {
-        self.documents.insert(id, properties);
-        Ok(())
-    }
-    
-    /// Remove a document by ID.
-    fn remove_document(&mut self, id: &ID16) -> Result<(), String> {
-        self.remove_document(id).map_err(|e| e.to_string())
-    }
-    
-    /// Check if a document exists.
-    fn document_exists(&self, id: &ID16) -> bool {
-        self.documents.contains_key(id)
-    }
-    
-    /// Add a document as a child of another document.
-    fn add_child_relationship(&mut self, parent_id: ID16, child_id: ID16) -> Result<(), String> {
-        // Get the parent document
-        let parent = self.documents.get_mut(&parent_id)
-            .ok_or_else(|| format!("Parent document {} not found", parent_id))?;
-        
-        // Add child to parent's children array
-        if let Some(Value::Array(ref mut children)) = parent.get_mut("children") {
-            // Check if child already exists
-            let child_exists = children.iter().any(|child| {
-                if let Value::Reference(existing_child_id) = child {
-                    *existing_child_id == child_id
-                } else {
-                    false
-                }
-            });
-            
-            if !child_exists {
-                children.push(Value::Reference(child_id));
+                None
             }
         } else {
-            // Initialize children array if it doesn't exist
-            parent.insert("children".to_string(), Value::Array(vec![Value::Reference(child_id)]));
+            None
         }
-        
-        // Update parent's modification time
-        parent.insert("modified_at".to_string(), Value::U64(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64
-        ));
-        
-        // Update index to point child to the same root as the parent
-        if let Some(parent_root_id) = self.document_index.get(&parent_id).copied() {
-            self.document_index.insert(child_id, parent_root_id);
+    }
+    
+    /// Get document data from heap using index.
+    pub fn get_data_from_heap(&self, id: &ID16) -> Option<&[u8]> {
+        if let Some((offset, length)) = self.data_index.get(id) {
+            if *offset + *length <= self.data_heap.len() {
+                Some(&self.data_heap[*offset..*offset + *length])
+            } else {
+                None
+            }
+        } else {
+            None
         }
+    }
+    
+    /// Rebuild the index by scanning the heap.
+    /// This is the recovery mechanism when cache_dirty flag is set.
+    pub fn rebuild_index_from_heap(&mut self) -> Result<(), String> {
+        self.header_index.clear();
+        self.data_index.clear();
         
+        // TODO: Implement heap scanning to reconstruct indexes
+        // This would:
+        // 1. Scan header_heap sequentially
+        // 2. Deserialize each header to get ID and length
+        // 3. Rebuild header_index with (ID -> (offset, length))
+        // 4. Do the same for data_heap and data_index
+        
+        self.cache_dirty.store(false, Ordering::Release);
         Ok(())
     }
     
-    /// Remove a child relationship between documents.
-    fn remove_child_relationship(&mut self, parent_id: ID16, child_id: ID16) -> Result<(), String> {
-        // Get the parent document
-        let parent = self.documents.get_mut(&parent_id)
-            .ok_or_else(|| format!("Parent document {} not found", parent_id))?;
-        
-        // Remove child from parent's children array
-        if let Some(Value::Array(ref mut children)) = parent.get_mut("children") {
-            children.retain(|child| {
-                if let Value::Reference(child_ref_id) = child {
-                    *child_ref_id != child_id
-                } else {
-                    true
-                }
-            });
+    /// Check if the cache indexes are dirty and need rebuilding.
+    pub fn is_cache_dirty(&self) -> bool {
+        self.cache_dirty.load(Ordering::Acquire)
+    }
+    
+    /// Mark the cache as dirty (indexes need rebuilding).
+    pub fn mark_cache_dirty(&self) {
+        self.cache_dirty.store(true, Ordering::Release);
+    }
+    
+    // ===== PLACEHOLDER SERIALIZATION =====
+    
+    /// Serialize a DocumentHeader to bytes.
+    /// TODO: Implement proper binary serialization.
+    fn serialize_header(&self, header: &DocumentHeader) -> Vec<u8> {
+        // Placeholder - would serialize to binary format
+        vec![0; 128] // DocumentHeader is 128 bytes
+    }
+    
+    /// Deserialize a DocumentHeader from bytes.
+    /// TODO: Implement proper binary deserialization.
+    fn deserialize_header(&self, bytes: &[u8]) -> Result<DocumentHeader, String> {
+        if bytes.len() < 128 {
+            return Err("Invalid header bytes".to_string());
         }
         
-        // Update parent's modification time
-        parent.insert("modified_at".to_string(), Value::U64(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64
-        ));
+        // Placeholder - would deserialize from binary format
+        todo!("Implement header deserialization")
+    }
+
+    // ===== DELTA STREAM MANAGEMENT (SIMPLIFIED) =====
+    
+    /// Enable delta tracking for a document.
+    pub fn enable_delta_tracking(&mut self, doc_id: ID16) -> Result<(), String> {
+        if self.delta_streams.contains_key(&doc_id) {
+            return Err("Delta tracking already enabled for this document".to_string());
+        }
         
-        // Note: We don't remove from document_index here because the child document
-        // might still exist and be referenced elsewhere. Only remove_document() should
-        // clean up the index completely.
-        
+        self.delta_streams.insert(doc_id, AppendOnlyStream::new());
         Ok(())
+    }
+
+    /// Disable delta tracking for a document.
+    pub fn disable_delta_tracking(&mut self, doc_id: &ID16) -> Result<(), String> {
+        if !self.delta_streams.contains_key(doc_id) {
+            return Err("Delta tracking not enabled for this document".to_string());
+        }
+        
+        self.delta_streams.remove(doc_id);
+        Ok(())
+    }
+
+    /// Check if delta tracking is enabled for a document.
+    pub fn is_delta_tracking_enabled(&self, doc_id: &ID16) -> bool {
+        self.delta_streams.contains_key(doc_id)
+    }
+
+    /// Get all documents that have delta tracking enabled.
+    pub fn get_delta_tracked_documents(&self) -> Vec<ID16> {
+        self.delta_streams.iter().map(|entry| *entry.key()).collect()
     }
 }
 
@@ -363,125 +328,125 @@ impl Default for MemStore {
     }
 }
 
-// MemStore is thread-safe for Send and Sync
-unsafe impl Send for MemStore {}
-unsafe impl Sync for MemStore {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-
-    #[test]
-    fn test_store_creation() {
-        let store = MemStore::new();
-        assert_eq!(store.document_count(), 0);
-        assert_eq!(store.get_root_documents().len(), 0);
+impl ZeroCopyDocumentStorage for MemStore {
+    // ===== CORE DOCUMENT OPERATIONS =====
+    
+    fn get_document(&self, id: &ID16) -> Option<&Document<'_>> {
+        // TODO: Implement heap-based document lookup
+        // This should:
+        // 1. Get header from heap using header_index
+        // 2. Get data from heap using data_index  
+        // 3. Create zero-copy Document view from these references
+        // 4. If indexes are dirty, trigger rebuild first
+        todo!("Implement heap-based document lookup")
     }
     
-    #[test]
-    fn test_root_document_creation() {
-        let mut store = MemStore::new();
-        
-        let root_id = store.create_root_document("Test Root");
-        assert_eq!(store.document_count(), 1);
-        assert_eq!(store.get_root_documents().len(), 1);
-        assert_eq!(store.get_root_documents()[0], root_id);
-        
-        let root_doc = store.get_document(&root_id).unwrap();
-        assert_eq!(root_doc.get("name").unwrap(), &Value::String("Test Root".to_string()));
+    fn get_document_header(&self, id: &ID16) -> Option<&DocumentHeader> {
+        // Use our heap-based lookup
+        self.get_header_from_heap(id)
     }
     
-    #[test]
-    fn test_document_addition() {
-        let mut store = MemStore::new();
-        
-        let root_id = store.create_root_document("Test Root");
-        let doc_id = ID16::random();
-        
-        let mut properties = AdaptiveMap::new();
-        properties.insert("title".to_string(), Value::String("Test Document".to_string()));
-        
-        store.add_document(root_id, doc_id, properties).unwrap();
-        
-        assert_eq!(store.document_count(), 2); // Root + document
-        assert_eq!(store.find_root_for_document(&doc_id), Some(root_id));
-        
-        let doc = store.get_document(&doc_id).unwrap();
-        assert_eq!(doc.get("title").unwrap(), &Value::String("Test Document".to_string()));
+    fn create_document(
+        &self,
+        id: ID16,
+        doc_type: DocumentType,
+        parent_id: ID16,
+        properties: &AdaptiveMap<String, Value>
+    ) -> Result<(), String> {
+        // TODO: Implement heap-based document creation
+        // This should:
+        // 1. Create DocumentHeader with metadata
+        // 2. Serialize properties to binary data
+        // 3. Append header to header_heap and update header_index
+        // 4. Append data to data_heap and update data_index
+        // 5. This is a mutable operation requiring &mut self
+        todo!("Implement heap-based document creation")
     }
     
-    #[test]
-    fn test_document_removal() {
-        let mut store = MemStore::new();
-        
-        let root_id = store.create_root_document("Test Root");
-        let doc_id = ID16::random();
-        
-        let mut properties = AdaptiveMap::new();
-        properties.insert("title".to_string(), Value::String("Test Document".to_string()));
-        
-        store.add_document(root_id, doc_id, properties).unwrap();
-        assert_eq!(store.document_count(), 2);
-        
-        store.remove_document(&doc_id).unwrap();
-        assert_eq!(store.document_count(), 1); // Only root remains
-        assert_eq!(store.find_root_for_document(&doc_id), None);
+    fn update_property(&self, id: &ID16, property: &str, value: &Value) -> Result<(), String> {
+        // TODO: Implement property update via heap modification
+        // This is complex in heap model - might need to:
+        // 1. Read existing data from heap
+        // 2. Deserialize properties 
+        // 3. Update the property
+        // 4. Re-serialize and append new version to heap
+        // 5. Update index to point to new version
+        todo!("Implement heap-based property update")
     }
     
-    #[test]
-    fn test_document_storage_trait() {
-        let mut store = MemStore::new();
-        let doc_id = ID16::random();
-        
-        // Test document creation through trait
-        let mut properties = AdaptiveMap::new();
-        properties.insert("test".to_string(), Value::String("value".to_string()));
-        
-        store.create_document(doc_id, properties).unwrap();
-        assert!(store.document_exists(&doc_id));
-        
-        // Test document retrieval through trait
-        let doc = store.get_document(&doc_id).unwrap();
-        assert_eq!(doc.get("test").unwrap(), &Value::String("value".to_string()));
-        
-        // Test document removal through trait
-        DocumentStorage::remove_document(&mut store, &doc_id).unwrap();
-        assert!(!store.document_exists(&doc_id));
+    fn remove_document(&self, id: &ID16) -> Result<(), String> {
+        // TODO: Implement document removal
+        // In heap model, this means removing from indexes
+        // (heap data stays but becomes unreachable)
+        todo!("Implement document removal via index update")
     }
     
-    #[test]
-    fn test_child_relationships() {
-        let mut store = MemStore::new();
-        let parent_id = ID16::random();
-        let child_id = ID16::random();
-        
-        // Create parent document
-        let mut parent_props = AdaptiveMap::new();
-        parent_props.insert("children".to_string(), Value::Array(Vec::new()));
-        store.create_document(parent_id, parent_props).unwrap();
-        
-        // Add child relationship
-        store.add_child_relationship(parent_id, child_id).unwrap();
-        
-        // Verify child was added
-        let parent = store.get_document(&parent_id).unwrap();
-        if let Some(Value::Array(children)) = parent.get("children") {
-            assert_eq!(children.len(), 1);
-            if let Value::Reference(ref_id) = &children[0] {
-                assert_eq!(*ref_id, child_id);
-            } else {
-                panic!("Expected Reference value");
-            }
-        } else {
-            panic!("Expected children array");
+    fn document_exists(&self, id: &ID16) -> bool {
+        self.header_index.contains_key(id)
+    }
+    
+    // ===== RELATIONSHIP OPERATIONS =====
+    
+    fn add_child_relationship(&self, parent_id: ID16, child_id: ID16) -> Result<(), String> {
+        // TODO: Implement child relationship addition
+        // This requires updating parent document's children list
+        todo!("Implement add child relationship")
+    }
+    
+    fn remove_child_relationship(&self, parent_id: ID16, child_id: ID16) -> Result<(), String> {
+        // TODO: Implement child relationship removal
+        todo!("Implement remove child relationship")
+    }
+    
+    // ===== HIERARCHY OPERATIONS =====
+    
+    fn create_root_document(&self, id: ID16, name: String, description: String) -> Result<(), String> {
+        // Check if root document already exists
+        if self.root_documents.contains_key(&id) {
+            return Err("Root document with this ID already exists".to_string());
         }
         
-        // Test child removal
-        store.remove_child_relationship(parent_id, child_id).unwrap();
-        let parent = store.get_document(&parent_id).unwrap();
-        if let Some(Value::Array(children)) = parent.get("children") {
-            assert_eq!(children.len(), 0);
-        }
+        // Create document header for root document
+        let header = DocumentHeader {
+            id,
+            version: AtomicU64::new(1),
+            created_at: Self::current_timestamp(),
+            modified_at: AtomicU64::new(Self::current_timestamp()),
+            doc_type: DocumentType::Root,
+            data_size: AtomicU32::new(0),
+            property_count: AtomicU16::new(2),
+            total_child_count: AtomicU16::new(0),
+            checksum: AtomicU32::new(0),
+            parent_id: ID16::default(),
+            group_count: AtomicU8::new(0),
+            subtree_bloom: BloomFilter::new_default()
+        };
+        
+        // Create properties for name and description
+        let mut properties = AdaptiveMap::new();
+        properties.insert("name".to_string(), Value::String(name));
+        properties.insert("description".to_string(), Value::String(description));
+        
+        // TODO: Serialize properties and append to heap
+        // For now, just mark as root document
+        self.root_documents.insert(id, AtomicBool::new(true));
+        
+        Ok(())
+    }
+    
+    fn get_root_documents(&self) -> Vec<ID16> {
+        self.root_documents.iter().map(|entry| *entry.key()).collect()
+    }
+    
+    fn find_root_for_document(&self, document_id: &ID16) -> Option<ID16> {
+        // TODO: Implement root finding by traversing hierarchy
+        // Walk up parent chain until reaching root (parent_id == ID16::default())
+        todo!("Implement root document finding")
+    }
+    
+    // ===== STORAGE INFORMATION =====
+    
+    fn document_count(&self) -> usize {
+        self.header_index.len()
     }
 } 
