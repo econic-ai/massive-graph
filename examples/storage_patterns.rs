@@ -3,7 +3,8 @@
 /// This demonstrates the trade-offs between passing storage as parameters
 /// versus using a global static storage instance.
 
-use massive_graph::storage::{MemStore, DeltaProcessor, DocumentStorage};
+use massive_graph::storage::{MemStore, DocumentStorage};
+use massive_graph::core::DeltaProcessor;
 use massive_graph::core::types::{ID16, document::{Value, AdaptiveMap}};
 use std::sync::{Mutex, OnceLock};
 use std::collections::HashMap;
