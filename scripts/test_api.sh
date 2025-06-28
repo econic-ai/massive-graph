@@ -6,8 +6,8 @@
 set -e  # Exit on any error
 
 # BASE_URL="http://localhost:8080"
-BASE_URL="https://api.local.econic.ai/mg"
-API_BASE="$BASE_URL/api/v1"
+BASE_URL="https://api.local.econic.ai"
+API_BASE="$BASE_URL/mg/api/v1"
 
 # Colors for output
 RED='\033[0;31m'
