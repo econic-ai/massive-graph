@@ -11,8 +11,8 @@ use serde_json::{json, Value};
 use base64::prelude::*;
 
 use crate::core::types::{ID16, document::{Value as DocValue, AdaptiveMap, DocumentType}};
-use crate::core::DocumentStorage;
-use crate::storage::SharedStorage;
+use crate::storage::{ZeroCopyDocumentStorage, MemStore};
+use std::sync::Arc;
 
 // Response types
 /// Standard API response wrapper for all endpoints
@@ -222,6 +222,7 @@ fn doc_value_to_json(doc_value: &DocValue) -> Value {
         DocValue::Reference(id) => Value::String(id.to_string()),
         DocValue::BinaryStream(_) => Value::String("binary_stream".to_string()),
         DocValue::TextStream(_) => Value::String("text_stream".to_string()),
+        DocValue::DocumentStream(_) => Value::String("document_stream".to_string()),
     }
 }
 
@@ -370,7 +371,7 @@ pub async fn list_collections(
 // Document Handlers
 /// Create a new document
 pub async fn create_document(
-    State(storage): State<SharedStorage>,
+    State(storage): State<Arc<MemStore>>,
     Json(request): Json<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DocumentInfo>>), StatusCode> {
     // Generate new document ID
@@ -431,16 +432,22 @@ pub async fn create_document(
     properties.insert("children".to_string(), DocValue::Array(Vec::new()));
     
     // Create document in storage
-    let mut storage_guard = storage.lock().unwrap();
-    match storage_guard.create_document(doc_id, properties.clone()) {
+    let parent_id = if let Some(parent_id_str) = &request.parent_id {
+        match parent_id_str.parse::<ID16>() {
+            Ok(pid) => pid,
+            Err(_) => ID16::default(), // Default to root if parent ID is invalid
+        }
+    } else {
+        ID16::default() // No parent specified, make it a root document
+    };
+    
+    match storage.create_document_from_properties(doc_id, doc_type, parent_id, &properties) {
         Ok(()) => {
-            // Add to parent if specified
-            if let Some(parent_id_str) = &request.parent_id {
-                if let Ok(parent_id) = parent_id_str.parse::<ID16>() {
-                    if let Err(e) = storage_guard.add_child_relationship(parent_id, doc_id) {
-                        // Document created but couldn't add to parent - log warning but continue
-                        tracing::warn!("Failed to add document {} to parent {}: {}", doc_id, parent_id, e);
-                    }
+            // If parent was specified and valid, add child relationship
+            if parent_id != ID16::default() {
+                if let Err(e) = storage.add_child_relationship(parent_id, doc_id) {
+                    // Document created but couldn't add to parent - log warning but continue
+                    tracing::warn!("Failed to add document {} to parent {}: {}", doc_id, parent_id, e);
                 }
             }
             
@@ -489,7 +496,7 @@ pub async fn create_document(
 
 /// Get a document by ID
 pub async fn get_document(
-    State(storage): State<SharedStorage>,
+    State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
     // Parse document ID
@@ -506,50 +513,26 @@ pub async fn get_document(
     };
     
     // Get document from storage
-    let storage_guard = storage.lock().unwrap();
-    match storage_guard.get_document(&doc_id) {
-        Some(properties) => {
-            // Extract metadata
-            let doc_type = properties.get("doc_type")
-                .and_then(|v| match v {
-                    DocValue::U8(t) => Some(*t),
-                    _ => None,
-                })
-                .unwrap_or(DocumentType::Generic as u8);
+    match storage.get_document_view(&doc_id) {
+        Some(document) => {
+            // Extract metadata from header
+            let doc_type = document.header.doc_type;
+            let created_at = document.header.created_at;
+            let updated_at = document.header.modified_at;
+            let child_count = document.header.child_count;
             
-            let created_at = properties.get("created_at")
-                .and_then(|v| match v {
-                    DocValue::U64(t) => Some(*t),
-                    _ => None,
-                })
-                .unwrap_or(0);
-            
-            let updated_at = properties.get("modified_at")
-                .and_then(|v| match v {
-                    DocValue::U64(t) => Some(*t),
-                    _ => None,
-                })
-                .unwrap_or(0);
-            
-            let child_count = properties.get("children")
-                .and_then(|v| match v {
-                    DocValue::Array(arr) => Some(arr.len() as u16),
-                    _ => None,
-                })
-                .unwrap_or(0);
-            
-            // Convert properties to JSON (excluding metadata)
-            let mut json_properties = serde_json::Map::new();
-            for (key, value) in properties.iter() {
-                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
-                    json_properties.insert(key.clone(), doc_value_to_json(value));
-                }
-            }
+            // TODO: Parse properties from binary data
+            // For now, return empty properties until binary parsing is implemented
+            let json_properties = serde_json::Map::new();
             
             let document_info = DocumentInfo {
                 id: doc_id.to_string(),
-                doc_type: doc_type_to_string(unsafe { std::mem::transmute(doc_type) }),
-                parent_id: None, // TODO: Extract from parent relationships
+                doc_type: doc_type_to_string(doc_type),
+                parent_id: if document.header.parent_id != ID16::default() {
+                    Some(document.header.parent_id.to_string())
+                } else {
+                    None
+                },
                 properties: Value::Object(json_properties),
                 created_at: created_at.to_string(),
                 updated_at: updated_at.to_string(),
@@ -574,7 +557,7 @@ pub async fn get_document(
 
 /// Update a document (replace properties)
 pub async fn update_document(
-    State(storage): State<SharedStorage>,
+    State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateDocumentRequest>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
@@ -591,97 +574,21 @@ pub async fn update_document(
         }
     };
     
-    // Get mutable reference to document
-    let mut storage_guard = storage.lock().unwrap();
-    match storage_guard.get_document_mut(&doc_id) {
-        Some(properties) => {
-            // Convert new properties
-            let new_properties = match json_to_doc_value(&request.properties) {
-                Ok(DocValue::Object(obj)) => *obj,
-                Ok(_) => {
-                    return Ok(Json(ApiResponse {
-                        success: false,
-                        data: None,
-                        message: None,
-                        error: Some("Properties must be an object".to_string()),
-                    }));
-                }
-                Err(e) => {
-                    return Ok(Json(ApiResponse {
-                        success: false,
-                        data: None,
-                        message: None,
-                        error: Some(e),
-                    }));
-                }
-            };
-            
-            // Preserve metadata
-            let doc_type = properties.get("doc_type").cloned();
-            let created_at = properties.get("created_at").cloned();
-            let children = properties.get("children").cloned();
-            
-            // Create a new map with the new properties and preserved metadata
-            let mut new_map = new_properties;
-            
-            // Restore metadata
-            if let Some(dt) = doc_type {
-                new_map.insert("doc_type".to_string(), dt);
-            }
-            if let Some(ca) = created_at {
-                new_map.insert("created_at".to_string(), ca);
-            }
-            if let Some(ch) = children {
-                new_map.insert("children".to_string(), ch);
-            }
-            
-            // Replace the entire properties map
-            *properties = new_map;
-            
-            // Update modified timestamp
-            let timestamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
-            
-            // Convert properties back to JSON for response
-            let mut json_properties = serde_json::Map::new();
-            for (key, value) in properties.iter() {
-                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
-                    json_properties.insert(key.clone(), doc_value_to_json(value));
-                }
-            }
-            
-            let document_info = DocumentInfo {
-                id: doc_id.to_string(),
-                doc_type: "generic".to_string(), // TODO: Extract from doc_type
-                parent_id: None,
-                properties: Value::Object(json_properties),
-                created_at: "0".to_string(), // TODO: Extract from created_at
-                updated_at: timestamp.to_string(),
-                child_count: 0, // TODO: Extract from children
-            };
-            
-            Ok(Json(ApiResponse {
-                success: true,
-                data: Some(document_info),
-                message: Some("Document updated successfully".to_string()),
-                error: None,
-            }))
-        }
-        None => Ok(Json(ApiResponse {
-            success: false,
-            data: None,
-            message: None,
-            error: Some("Document not found".to_string()),
-        })),
-    }
+    // TODO: Implement atomic property updates for zero-copy architecture
+    // For now, return an error since mutable document access is not supported
+    
+         // Placeholder response until atomic property updates are implemented
+     Ok(Json(ApiResponse {
+         success: false,
+         data: None,
+         message: None,
+         error: Some("Document updates not yet implemented in zero-copy architecture. Use atomic property updates instead.".to_string()),
+     }))
 }
 
 /// Delete a document
 pub async fn delete_document(
-    State(storage): State<SharedStorage>,
+    State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), StatusCode> {
     // Parse document ID
@@ -701,8 +608,7 @@ pub async fn delete_document(
     };
     
     // Remove document from storage
-    let mut storage_guard = storage.lock().unwrap();
-    match storage_guard.remove_document(&doc_id) {
+    match storage.remove_document(&doc_id) {
         Ok(()) => Ok((
             StatusCode::OK,
             Json(ApiResponse {
@@ -726,7 +632,7 @@ pub async fn delete_document(
 
 /// Partially update document content (merge with existing)
 pub async fn patch_document(
-    State(storage): State<SharedStorage>,
+    State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateDocumentRequest>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
@@ -743,84 +649,16 @@ pub async fn patch_document(
         }
     };
     
-    // Get mutable reference to document
-    let mut storage_guard = storage.lock().unwrap();
-    match storage_guard.get_document_mut(&doc_id) {
-        Some(properties) => {
-            // Convert new properties
-            let new_properties = match json_to_doc_value(&request.properties) {
-                Ok(DocValue::Object(obj)) => *obj,
-                Ok(_) => {
-                    return Ok(Json(ApiResponse {
-                        success: false,
-                        data: None,
-                        message: None,
-                        error: Some("Properties must be an object".to_string()),
-                    }));
-                }
-                Err(e) => {
-                    return Ok(Json(ApiResponse {
-                        success: false,
-                        data: None,
-                        message: None,
-                        error: Some(e.to_string()),
-                    }));
-                }
-            };
-            
-            // Merge new properties with existing ones (patch operation)
-            // First collect the properties to avoid borrowing issues
-            let mut props_to_insert = Vec::new();
-            for (key, value) in new_properties.iter() {
-                if !["doc_type", "created_at", "children"].contains(&key.as_str()) {
-                    props_to_insert.push((key.clone(), value.clone()));
-                }
-            }
-            
-            // Now insert them
-            for (key, value) in props_to_insert {
-                properties.insert(key, value);
-            }
-            
-            // Update modified timestamp
-            let timestamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
-            
-            // Convert properties back to JSON for response
-            let mut json_properties = serde_json::Map::new();
-            for (key, value) in properties.iter() {
-                if !["doc_type", "created_at", "modified_at", "children"].contains(&key.as_str()) {
-                    json_properties.insert(key.clone(), doc_value_to_json(value));
-                }
-            }
-            
-            let document_info = DocumentInfo {
-                id: doc_id.to_string(),
-                doc_type: "generic".to_string(), // TODO: Extract from doc_type
-                parent_id: None,
-                properties: Value::Object(json_properties),
-                created_at: "0".to_string(), // TODO: Extract from created_at
-                updated_at: timestamp.to_string(),
-                child_count: 0, // TODO: Extract from children
-            };
-            
-            Ok(Json(ApiResponse {
-                success: true,
-                data: Some(document_info),
-                message: Some("Document patched successfully".to_string()),
-                error: None,
-            }))
-        }
-        None => Ok(Json(ApiResponse {
-            success: false,
-            data: None,
-            message: None,
-            error: Some("Document not found".to_string()),
-        })),
-    }
+    // TODO: Implement atomic property updates for zero-copy architecture
+    // For now, return an error since mutable document access is not supported
+    
+    // Placeholder response until atomic property updates are implemented
+    Ok(Json(ApiResponse {
+        success: false,
+        data: None,
+        message: None,
+        error: Some("Document patch operations not yet implemented in zero-copy architecture. Use atomic property updates instead.".to_string()),
+    }))
 }
 
 /// List all documents with pagination support

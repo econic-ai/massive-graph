@@ -18,7 +18,7 @@ use tower_http::{
 use super::handlers;
 
 /// Creates the main application router with all routes and middleware
-pub fn create_app(storage: crate::storage::SharedStorage) -> Router {
+pub fn create_app(storage: std::sync::Arc<crate::storage::MemStore>) -> Router {
     // CORS configuration
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
@@ -77,7 +77,7 @@ pub fn create_app(storage: crate::storage::SharedStorage) -> Router {
 }
 
 /// Start the HTTP server
-pub async fn start_server(addr: SocketAddr, storage: crate::storage::SharedStorage) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_server(addr: SocketAddr, storage: std::sync::Arc<crate::storage::MemStore>) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Starting Massive Graph API server on {}", addr);
     
     let app = create_app(storage);
