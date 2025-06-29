@@ -115,6 +115,3 @@ pub mod factory;
 /// Re-export main storage types
 pub use mem_store::MemStore;
 pub use factory::{create_storage, StorageFactoryError};
-
-// Re-export key types for external use
-pub use mem_store::{DirtyPriority, DirtyDocument, DirtyType, DirtyTrackingStats};

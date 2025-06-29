@@ -19,7 +19,7 @@ pub mod ids {
     /// The #[repr(transparent)] ensures the struct has the same ABI as the underlying array,
     /// enabling direct transmutation in zero-copy operations.
     #[repr(transparent)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct ID16([u8; 16]);
 
     /// Fixed-size 8-byte identifier optimized for delta/operation tracking.

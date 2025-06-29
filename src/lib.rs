@@ -16,6 +16,7 @@ pub mod core;
 pub mod storage;
 pub mod api;
 pub mod system;
+pub mod security;
 
 // Re-export commonly used items for convenience
 pub use core::{Error, Result, Config, Value};
