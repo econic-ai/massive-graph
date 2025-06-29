@@ -18,7 +18,7 @@
 /// - Cache rebuild: O(n) scan of heap to reconstruct HashMap
 /// - Memory: Optimal cache locality due to sequential layout
 
-use crate::core::types::ID16;
+use crate::core::types::{ID16, Handle};
 use crate::core::types::document::{Value, AdaptiveMap, DocumentHeader, Document, DocumentType, AppendOnlyStream, BloomFilter};
 use crate::core::types::delta::{Delta, Operation};
 use crate::storage::ZeroCopyDocumentStorage;
@@ -345,14 +345,28 @@ pub struct MemStore {
     
     /// Global root document registry (documents that are entry points)
     root_documents: DashMap<ID16, UserID>, // document_id -> owner_user_id
+    
+    /// Handle-based pools for variable-sized data (stable references)
+    string_pool: DashMap<Handle, Box<String>>,
+    binary_stream_pool: DashMap<Handle, Box<AppendOnlyStream<Vec<u8>>>>,
+    text_stream_pool: DashMap<Handle, Box<AppendOnlyStream<String>>>,
+    doc_stream_pool: DashMap<Handle, Box<AppendOnlyStream<ID16>>>,
+    
+    /// Handle generation (atomic counter)
+    next_handle: AtomicU64,
 }
 
 impl MemStore {
-    /// Create new MemStore
+    /// Create new MemStore with handle-based pools
     pub fn new() -> Self {
         Self {
             user_heaps: DashMap::new(),
             root_documents: DashMap::new(),
+            string_pool: DashMap::new(),
+            binary_stream_pool: DashMap::new(),
+            text_stream_pool: DashMap::new(),
+            doc_stream_pool: DashMap::new(),
+            next_handle: AtomicU64::new(1), // Start at 1, 0 reserved for null handle
         }
     }
     
@@ -420,6 +434,94 @@ impl MemStore {
             .filter(|entry| entry.value() == user_id)
             .map(|entry| *entry.key())
             .collect()
+    }
+    
+    /// Generate a new unique handle
+    pub fn new_handle(&self) -> Handle {
+        Handle::new(self.next_handle.fetch_add(1, Ordering::AcqRel))
+    }
+    
+    /// Store string and return handle
+    pub fn store_string(&self, content: String) -> Handle {
+        let handle = self.new_handle();
+        self.string_pool.insert(handle, Box::new(content));
+        handle
+    }
+    
+    /// Get string by handle
+    pub fn get_string(&self, handle: Handle) -> Option<String> {
+        self.string_pool.get(&handle).map(|boxed| (**boxed).clone())
+    }
+    
+    /// Store binary stream and return handle
+    pub fn store_binary_stream(&self, stream: AppendOnlyStream<Vec<u8>>) -> Handle {
+        let handle = self.new_handle();
+        self.binary_stream_pool.insert(handle, Box::new(stream));
+        handle
+    }
+    
+    /// Get binary stream by handle (read-only reference)
+    pub fn get_binary_stream(&self, handle: Handle) -> Option<dashmap::mapref::one::Ref<'_, Handle, Box<AppendOnlyStream<Vec<u8>>>>> {
+        self.binary_stream_pool.get(&handle)
+    }
+    
+    /// Get mutable binary stream by handle for appending
+    pub fn get_binary_stream_mut(&self, handle: Handle) -> Option<dashmap::mapref::one::RefMut<'_, Handle, Box<AppendOnlyStream<Vec<u8>>>>> {
+        self.binary_stream_pool.get_mut(&handle)
+    }
+    
+    /// Store text stream and return handle
+    pub fn store_text_stream(&self, stream: AppendOnlyStream<String>) -> Handle {
+        let handle = self.new_handle();
+        self.text_stream_pool.insert(handle, Box::new(stream));
+        handle
+    }
+    
+    /// Get text stream by handle (read-only reference)
+    pub fn get_text_stream(&self, handle: Handle) -> Option<dashmap::mapref::one::Ref<'_, Handle, Box<AppendOnlyStream<String>>>> {
+        self.text_stream_pool.get(&handle)
+    }
+    
+    /// Get mutable text stream by handle for appending
+    pub fn get_text_stream_mut(&self, handle: Handle) -> Option<dashmap::mapref::one::RefMut<'_, Handle, Box<AppendOnlyStream<String>>>> {
+        self.text_stream_pool.get_mut(&handle)
+    }
+    
+    /// Store document stream and return handle
+    pub fn store_doc_stream(&self, stream: AppendOnlyStream<ID16>) -> Handle {
+        let handle = self.new_handle();
+        self.doc_stream_pool.insert(handle, Box::new(stream));
+        handle
+    }
+    
+    /// Get document stream by handle (read-only reference)
+    pub fn get_doc_stream(&self, handle: Handle) -> Option<dashmap::mapref::one::Ref<'_, Handle, Box<AppendOnlyStream<ID16>>>> {
+        self.doc_stream_pool.get(&handle)
+    }
+    
+    /// Get mutable document stream by handle for appending
+    pub fn get_doc_stream_mut(&self, handle: Handle) -> Option<dashmap::mapref::one::RefMut<'_, Handle, Box<AppendOnlyStream<ID16>>>> {
+        self.doc_stream_pool.get_mut(&handle)
+    }
+    
+    /// Remove string from pool
+    pub fn remove_string(&self, handle: Handle) -> Option<Box<String>> {
+        self.string_pool.remove(&handle).map(|(_, boxed)| boxed)
+    }
+    
+    /// Remove stream from pool
+    pub fn remove_binary_stream(&self, handle: Handle) -> Option<Box<AppendOnlyStream<Vec<u8>>>> {
+        self.binary_stream_pool.remove(&handle).map(|(_, boxed)| boxed)
+    }
+    
+    /// Remove text stream from pool
+    pub fn remove_text_stream(&self, handle: Handle) -> Option<Box<AppendOnlyStream<String>>> {
+        self.text_stream_pool.remove(&handle).map(|(_, boxed)| boxed)
+    }
+    
+    /// Remove document stream from pool
+    pub fn remove_doc_stream(&self, handle: Handle) -> Option<Box<AppendOnlyStream<ID16>>> {
+        self.doc_stream_pool.remove(&handle).map(|(_, boxed)| boxed)
     }
     
     /// Get current timestamp

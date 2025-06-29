@@ -142,14 +142,39 @@ pub mod ids {
 
 // Use more concise names in the rest of the code
 pub use ids::{ID16, ID8};
+pub use document::{Handle, DocumentType, AdaptiveMap, Value, AppendOnlyStream, StreamEntry, DocumentHeader, BloomFilter, Document};
 
 /// Module containing the unified document model.
 /// All entities (documents, edges, indexes, statistics, etc.) are represented as documents with children.
 pub mod document {
     use super::ids::ID16;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, BTreeMap};
     use std::sync::atomic::{AtomicU64, AtomicU32, AtomicU16, AtomicU8, Ordering};
     use std::cell::OnceCell;
+    use std::fmt;
+
+    /// Universal handle for referencing pooled resources (strings, streams, etc.)
+    /// All handles are 8 bytes regardless of the underlying data size
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct Handle(pub u64);
+
+    impl Handle {
+        /// Create a new handle with the given ID
+        pub fn new(id: u64) -> Self {
+            Handle(id)
+        }
+        
+        /// Get the underlying ID
+        pub fn id(&self) -> u64 {
+            self.0
+        }
+    }
+
+    impl fmt::Display for Handle {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "Handle({})", self.0)
+        }
+    }
 
     /// Document type identifiers for different kinds of hypergraph entities.
     /// Each type determines how the document's properties and children should be interpreted.
@@ -348,7 +373,8 @@ pub mod document {
     }
 
     /// Value type for document properties supporting various data structures.
-    /// Reduced from 48 bytes to 8 bytes by boxing large variants.
+    /// Variable-sized data (strings, streams) use handles for stable references.
+    /// All variants are now 8 bytes for predictable document serialization.
     #[derive(Debug, Clone, PartialEq)]
     pub enum Value {
         /// Null value
@@ -375,9 +401,7 @@ pub mod document {
         F32(f32),
         /// 64-bit floating point number
         F64(f64),
-        /// UTF-8 string value
-        String(String),
-        /// Binary data as byte vector
+        /// Binary data as byte vector (for small fixed-size data)
         Binary(Vec<u8>),
         /// Array of values
         Array(Vec<Value>),
@@ -386,21 +410,23 @@ pub mod document {
         /// Reference to another document by ID
         Reference(ID16),
         
-        // Stream types for massive ordered collections
-        /// Raw binary data with timestamps
-        BinaryStream(Box<AppendOnlyStream<Vec<u8>>>),
-        /// Text/JSON data with timestamps
-        TextStream(Box<AppendOnlyStream<String>>),
-        /// Document IDs with timestamps - ordered sequence of any document types
-        /// (deltas, audit logs, sequences, etc.)
-        DocumentStream(Box<AppendOnlyStream<ID16>>),
+        // Handle-based types for variable-sized pooled data
+        /// Handle to string in string pool (8 bytes, stable reference)
+        String(Handle),
+        /// Handle to binary stream in stream pool (8 bytes, stable reference)
+        BinaryStream(Handle),
+        /// Handle to text stream in stream pool (8 bytes, stable reference)
+        TextStream(Handle),
+        /// Handle to document stream in stream pool (8 bytes, stable reference)
+        DocumentStream(Handle),
     }
 
-    /// Append-only stream optimized for massive ordered collections.
-    /// Designed for lock-free concurrent access with server-generated timestamps.
+    /// Handle-based append-only stream optimized for massive ordered collections.
+    /// Each entry is stored in a separate Box for stable references and zero reallocation.
     /// 
     /// Key features:
-    /// - Append-only operations (no updates/deletes)
+    /// - Immutable entries created complete at append time
+    /// - Each entry in stable Box - no reallocation issues
     /// - Server-generated timestamps for ordering
     /// - Efficient range queries by timestamp
     /// - Support for live subscriptions
@@ -410,8 +436,11 @@ pub mod document {
     where 
         T: Clone,
     {
-        /// Ordered entries by server timestamp
-        entries: Vec<StreamEntry<T>>,
+        /// Each entry in its own stable Box for zero reallocation
+        entries: Vec<Box<StreamEntry<T>>>,
+        
+        /// Timestamp index for O(log n) time-based queries
+        timestamp_index: BTreeMap<u64, usize>,
         
         /// Total number of entries (for quick size checks)
         entry_count: u64,
@@ -457,7 +486,7 @@ pub mod document {
         }
     }
 
-    /// AppendOnlyStream implementation with lock-free operations
+    /// AppendOnlyStream implementation with handle-based stable references
     impl<T> AppendOnlyStream<T>
     where
         T: Clone,
@@ -466,6 +495,7 @@ pub mod document {
         pub fn new() -> Self {
             Self {
                 entries: Vec::new(),
+                timestamp_index: BTreeMap::new(),
                 entry_count: 0,
                 latest_timestamp: 0,
                 earliest_timestamp: u64::MAX,
@@ -473,14 +503,20 @@ pub mod document {
         }
 
         /// Append new data with server-generated timestamp, returns timestamp
+        /// Entry is created complete and immutable - stored in stable Box
         pub fn append(&mut self, data: T) -> u64 {
             let timestamp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos() as u64;
 
-            let entry = StreamEntry { timestamp, data };
+            let entry = Box::new(StreamEntry { timestamp, data });
+            let index = self.entries.len();
             
+            // Add to timestamp index for O(log n) seeking
+            self.timestamp_index.insert(timestamp, index);
+            
+            // Store in stable Box - address never changes
             self.entries.push(entry);
             self.entry_count += 1;
             self.latest_timestamp = timestamp;
@@ -496,6 +532,7 @@ pub mod document {
         pub fn range(&self, start_time: u64, end_time: u64) -> Vec<&StreamEntry<T>> {
             self.entries
                 .iter()
+                .map(|boxed| boxed.as_ref())
                 .filter(|entry| entry.timestamp >= start_time && entry.timestamp <= end_time)
                 .collect()
         }
@@ -507,13 +544,24 @@ pub mod document {
             } else {
                 0
             };
-            self.entries[start_idx..].iter().collect()
+            self.entries[start_idx..].iter().map(|boxed| boxed.as_ref()).collect()
         }
 
         /// Get the earliest N entries in chronological order
         pub fn earliest(&self, count: usize) -> Vec<&StreamEntry<T>> {
             let end_idx = std::cmp::min(count, self.entries.len());
-            self.entries[..end_idx].iter().collect()
+            self.entries[..end_idx].iter().map(|boxed| boxed.as_ref()).collect()
+        }
+
+        /// Get entry at specific timestamp - O(log n) lookup
+        pub fn get_at_time(&self, timestamp: u64) -> Option<&StreamEntry<T>> {
+            let index = self.timestamp_index.get(&timestamp)?;
+            self.entries.get(*index).map(|boxed| boxed.as_ref())
+        }
+
+        /// Get entry by index - O(1) lookup
+        pub fn get_entry(&self, index: usize) -> Option<&StreamEntry<T>> {
+            self.entries.get(index).map(|boxed| boxed.as_ref())
         }
 
         /// Get total number of entries in the stream
@@ -1181,5 +1229,4 @@ pub mod delta {
         
     }
 
-
-} 
+}
