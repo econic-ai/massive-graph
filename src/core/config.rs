@@ -7,6 +7,19 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use crate::constants::{
+    DEFAULT_REQUEST_TIMEOUT_S, 
+    DEFAULT_HEARTBEAT_INTERVAL_S, 
+    DEFAULT_SYNC_INTERVAL_S, 
+    DEFAULT_BATCH_TIMEOUT_MS,
+    NETWORK_BUFFER_SIZE,
+    DEFAULT_MEMORY_POOL_SIZE,
+    DEFAULT_MAX_MEMORY,
+    MAX_LOG_FILE_SIZE,
+    MIN_MEMORY_REQUIREMENT,
+    MAX_WORKER_THREADS,
+    MAX_DOCUMENT_SIZE
+};
 
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +124,9 @@ pub struct NetworkConfig {
     
     /// Receive buffer size
     pub recv_buffer_size: usize,
+    
+    /// Sync to disk interval
+    pub sync_interval: Duration,
 }
 
 /// Performance tuning configuration
@@ -196,7 +212,7 @@ impl Default for ServerConfig {
             ws_addr: "0.0.0.0:8081".parse().unwrap(),
             quic_addr: "0.0.0.0:8082".parse().unwrap(),
             max_connections: 10_000,
-            request_timeout: Duration::from_secs(30),
+            request_timeout: Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_S),
             keep_alive: Duration::from_secs(60),
         }
     }
@@ -207,7 +223,7 @@ impl Default for StorageConfig {
         Self {
             storage_type: StorageType::Memory,
             data_dir: PathBuf::from("./data"),
-            max_memory: 8 * 1024 * 1024 * 1024, // 8GB
+            max_memory: DEFAULT_MAX_MEMORY,
             enable_mmap: true,
             sync_interval: Duration::from_secs(5),
             enable_compression: true,
@@ -219,13 +235,14 @@ impl Default for StorageConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            max_message_size: 64 * 1024 * 1024, // 64MB
+            max_message_size: MAX_DOCUMENT_SIZE,
             connect_timeout: Duration::from_secs(10),
-            heartbeat_interval: Duration::from_secs(30),
+            heartbeat_interval: Duration::from_secs(DEFAULT_HEARTBEAT_INTERVAL_S),
             max_retries: 3,
             tcp_nodelay: true,
-            send_buffer_size: 1024 * 1024, // 1MB
-            recv_buffer_size: 1024 * 1024, // 1MB
+            send_buffer_size: NETWORK_BUFFER_SIZE,
+            recv_buffer_size: NETWORK_BUFFER_SIZE,
+            sync_interval: Duration::from_secs(DEFAULT_SYNC_INTERVAL_S),
         }
     }
 }
@@ -234,11 +251,11 @@ impl Default for PerformanceConfig {
     fn default() -> Self {
         Self {
             worker_threads: 0, // Auto-detect
-            blocking_threads: 512,
+            blocking_threads: 8,
             max_batch_size: 1000,
-            batch_timeout: Duration::from_millis(10),
+            batch_timeout: Duration::from_millis(DEFAULT_BATCH_TIMEOUT_MS),
             enable_lockfree: true,
-            memory_pool_size: 1024 * 1024 * 1024, // 1GB
+            memory_pool_size: DEFAULT_MEMORY_POOL_SIZE,
             enable_zero_copy: true,
         }
     }
@@ -262,7 +279,7 @@ impl Default for LoggingConfig {
             format: "pretty".to_string(),
             structured: false,
             file: None,
-            max_file_size: 100 * 1024 * 1024, // 100MB
+            max_file_size: MAX_LOG_FILE_SIZE,
             max_files: 10,
         }
     }
@@ -368,12 +385,12 @@ impl Config {
         }
         
         // Validate memory limits
-        if self.storage.max_memory < 1024 * 1024 { // Minimum 1MB
+        if self.storage.max_memory < MIN_MEMORY_REQUIREMENT {
             return Err(Error::config("Max memory too small (minimum 1MB)"));
         }
         
         // Validate thread counts
-        if self.performance.worker_threads > 1024 {
+        if self.performance.worker_threads > MAX_WORKER_THREADS {
             return Err(Error::config("Too many worker threads (maximum 1024)"));
         }
         
