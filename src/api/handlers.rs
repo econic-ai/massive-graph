@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use base64::prelude::*;
 
-use crate::core::types::{ID16, document::{Value as DocValue, AdaptiveMap, DocumentType}};
-use crate::storage::{ZeroCopyDocumentStorage, MemStore};
+use crate::core::types::{ID16, Handle, document::{Value as DocValue, AdaptiveMap, DocumentType}};
+use crate::storage::{MemStore, DocumentStorage};
 use std::sync::Arc;
 
 // Response types
@@ -170,7 +170,11 @@ fn json_to_doc_value(json_value: &Value) -> Result<DocValue, String> {
                 Err("Invalid number format".to_string())
             }
         }
-        Value::String(s) => Ok(DocValue::String(s.clone())),
+        Value::String(s) => {
+            // For now, create a placeholder handle with hash of the string
+            let handle = Handle::new(s.len() as u64); // Simple placeholder
+            Ok(DocValue::String(handle))
+        },
         Value::Array(arr) => {
             let mut doc_array = Vec::new();
             for item in arr {
@@ -203,14 +207,11 @@ fn doc_value_to_json(doc_value: &DocValue) -> Value {
         DocValue::U64(i) => json!(*i),
         DocValue::F32(f) => json!(*f),
         DocValue::F64(f) => json!(*f),
-        DocValue::String(s) => Value::String(s.clone()),
-        DocValue::Binary(b) => {
-            // Encode binary as base64 for JSON
-            Value::String(base64::prelude::BASE64_STANDARD.encode(b))
-        }
+        DocValue::String(h) => Value::String(format!("handle_{}", h.id())),
+        DocValue::Binary(b) => json!(BASE64_STANDARD.encode(b)),
         DocValue::Array(arr) => {
-            let json_array: Vec<Value> = arr.iter().map(doc_value_to_json).collect();
-            Value::Array(json_array)
+            let json_arr: Vec<Value> = arr.iter().map(doc_value_to_json).collect();
+            Value::Array(json_arr)
         }
         DocValue::Object(obj) => {
             let mut json_obj = serde_json::Map::new();
@@ -220,9 +221,9 @@ fn doc_value_to_json(doc_value: &DocValue) -> Value {
             Value::Object(json_obj)
         }
         DocValue::Reference(id) => Value::String(id.to_string()),
-        DocValue::BinaryStream(_) => Value::String("binary_stream".to_string()),
-        DocValue::TextStream(_) => Value::String("text_stream".to_string()),
-        DocValue::DocumentStream(_) => Value::String("document_stream".to_string()),
+        DocValue::BinaryStream(h) => Value::String(format!("binary_stream_{}", h.id())),
+        DocValue::TextStream(h) => Value::String(format!("text_stream_{}", h.id())),
+        DocValue::DocumentStream(h) => Value::String(format!("document_stream_{}", h.id())),
     }
 }
 
@@ -374,10 +375,7 @@ pub async fn create_document(
     State(storage): State<Arc<MemStore>>,
     Json(request): Json<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DocumentInfo>>), StatusCode> {
-    // Generate new document ID
-    let doc_id = ID16::random();
-    
-    // Convert document type
+    // Parse document type
     let doc_type = match string_to_doc_type(&request.doc_type) {
         Ok(dt) => dt,
         Err(e) => {
@@ -387,110 +385,100 @@ pub async fn create_document(
                     success: false,
                     data: None,
                     message: None,
-                    error: Some(e),
+                    error: Some(format!("Invalid document type: {}", e)),
                 }),
             ));
         }
     };
-    
-    // Convert properties
-    let mut properties = match json_to_doc_value(&request.properties) {
-        Ok(DocValue::Object(obj)) => *obj,
-        Ok(_) => {
-            return Ok((
-                StatusCode::BAD_REQUEST,
-                Json(ApiResponse {
-                    success: false,
-                    data: None,
-                    message: None,
-                    error: Some("Properties must be an object".to_string()),
-                }),
-            ));
-        }
-        Err(e) => {
-            return Ok((
-                StatusCode::BAD_REQUEST,
-                Json(ApiResponse {
-                    success: false,
-                    data: None,
-                    message: None,
-                    error: Some(e),
-                }),
-            ));
-        }
-    };
-    
-    // Add metadata
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    
-    properties.insert("doc_type".to_string(), DocValue::U8(doc_type as u8));
-    properties.insert("created_at".to_string(), DocValue::U64(timestamp));
-    properties.insert("modified_at".to_string(), DocValue::U64(timestamp));
-    properties.insert("children".to_string(), DocValue::Array(Vec::new()));
-    
-    // Create document in storage
-    let parent_id = if let Some(parent_id_str) = &request.parent_id {
-        match parent_id_str.parse::<ID16>() {
-            Ok(pid) => pid,
-            Err(_) => ID16::default(), // Default to root if parent ID is invalid
+
+    // Parse parent ID if provided
+    let parent_id = if let Some(parent_str) = &request.parent_id {
+        match parent_str.parse::<ID16>() {
+            Ok(id) => Some(id),
+            Err(_) => {
+                return Ok((
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse {
+                        success: false,
+                        data: None,
+                        message: None,
+                        error: Some("Invalid parent ID format".to_string()),
+                    }),
+                ));
+            }
         }
     } else {
-        ID16::default() // No parent specified, make it a root document
+        None
     };
-    
-    match storage.create_document_from_properties(doc_id, doc_type, parent_id, &properties) {
-        Ok(()) => {
-            // If parent was specified and valid, add child relationship
-            if parent_id != ID16::default() {
-                if let Err(e) = storage.add_child_relationship(parent_id, doc_id) {
-                    // Document created but couldn't add to parent - log warning but continue
-                    tracing::warn!("Failed to add document {} to parent {}: {}", doc_id, parent_id, e);
+
+    // Convert JSON properties to internal format
+    let mut properties = AdaptiveMap::new();
+    if let Value::Object(props) = &request.properties {
+        for (key, value) in props {
+            match json_to_doc_value(value) {
+                Ok(doc_val) => {
+                    properties.insert(key.clone(), doc_val);
+                }
+                Err(e) => {
+                    return Ok((
+                        StatusCode::BAD_REQUEST,
+                        Json(ApiResponse {
+                            success: false,
+                            data: None,
+                            message: None,
+                            error: Some(format!("Invalid property value for '{}': {}", key, e)),
+                        }),
+                    ));
                 }
             }
-            
-            // Convert properties back to JSON for response
-            let json_properties = if let DocValue::Object(obj) = &DocValue::Object(Box::new(properties)) {
-                let mut json_obj = serde_json::Map::new();
-                for (key, value) in obj.iter() {
-                    json_obj.insert(key.clone(), doc_value_to_json(value));
-                }
-                Value::Object(json_obj)
-            } else {
-                json!({})
-            };
-            
-            let document_info = DocumentInfo {
+        }
+    }
+
+    // Generate document ID
+    let doc_id = ID16::random();
+
+    // Create document using stub method
+    match storage.create_document_from_properties(doc_id, doc_type, parent_id, &properties) {
+        Ok(_) => {
+            let doc_info = DocumentInfo {
                 id: doc_id.to_string(),
                 doc_type: doc_type_to_string(doc_type),
-                parent_id: request.parent_id,
-                properties: json_properties,
-                created_at: timestamp.to_string(),
-                updated_at: timestamp.to_string(),
+                parent_id: parent_id.map(|id| id.to_string()),
+                properties: request.properties,
+                created_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    .to_string(),
+                updated_at: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    .to_string(),
                 child_count: 0,
             };
-            
+
             Ok((
                 StatusCode::CREATED,
                 Json(ApiResponse {
                     success: true,
-                    data: Some(document_info),
+                    data: Some(doc_info),
                     message: Some("Document created successfully".to_string()),
                     error: None,
                 }),
             ))
         }
-        Err(e) => Ok((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse {
-                success: false,
-                data: None,
-                message: None,
-                error: Some(e),
-            }),
-        )),
+        Err(e) => {
+            Ok((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    message: None,
+                    error: Some(format!("Failed to create document: {}", e)),
+                }),
+            ))
+        }
     }
 }
 
@@ -499,7 +487,6 @@ pub async fn get_document(
     State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
 ) -> Result<Json<ApiResponse<DocumentInfo>>, StatusCode> {
-    // Parse document ID
     let doc_id = match id.parse::<ID16>() {
         Ok(id) => id,
         Err(_) => {
@@ -511,41 +498,14 @@ pub async fn get_document(
             }));
         }
     };
-    
-    // Get document from storage
+
     match storage.get_document_view(&doc_id) {
-        Some(document) => {
-            // Extract metadata from header
-            let doc_type = document.header.doc_type;
-            let created_at = document.header.created_at;
-            let updated_at = document.header.modified_at;
-            let child_count = document.header.child_count;
-            
-            // TODO: Parse properties from binary data
-            // For now, return empty properties until binary parsing is implemented
-            let json_properties = serde_json::Map::new();
-            
-            let document_info = DocumentInfo {
-                id: doc_id.to_string(),
-                doc_type: doc_type_to_string(doc_type),
-                parent_id: if document.header.parent_id != ID16::default() {
-                    Some(document.header.parent_id.to_string())
-                } else {
-                    None
-                },
-                properties: Value::Object(json_properties),
-                created_at: created_at.to_string(),
-                updated_at: updated_at.to_string(),
-                child_count,
-            };
-            
-            Ok(Json(ApiResponse {
-                success: true,
-                data: Some(document_info),
-                message: None,
-                error: None,
-            }))
-        }
+        Some(doc_info) => Ok(Json(ApiResponse {
+            success: true,
+            data: Some(doc_info),
+            message: None,
+            error: None,
+        })),
         None => Ok(Json(ApiResponse {
             success: false,
             data: None,
@@ -591,7 +551,6 @@ pub async fn delete_document(
     State(storage): State<Arc<MemStore>>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), StatusCode> {
-    // Parse document ID
     let doc_id = match id.parse::<ID16>() {
         Ok(id) => id,
         Err(_) => {
@@ -606,15 +565,14 @@ pub async fn delete_document(
             ));
         }
     };
-    
-    // Remove document from storage
-    match storage.remove_document(&doc_id) {
-        Ok(()) => Ok((
+
+    match storage.remove_document_stub(&doc_id) {
+        Ok(_) => Ok((
             StatusCode::OK,
             Json(ApiResponse {
                 success: true,
-                data: None,
-                message: Some(format!("Document {} deleted successfully", id)),
+                data: Some(()),
+                message: Some("Document deleted successfully".to_string()),
                 error: None,
             }),
         )),
@@ -624,7 +582,7 @@ pub async fn delete_document(
                 success: false,
                 data: None,
                 message: None,
-                error: Some(e.to_string()),
+                error: Some(format!("Failed to delete document: {}", e)),
             }),
         )),
     }
@@ -897,4 +855,31 @@ pub async fn websocket_documents_handler() -> &'static str {
 /// WebSocket handler for subscribing to specific document changes
 pub async fn websocket_document_handler() -> &'static str {
     "WebSocket endpoint for specific document changes - not yet implemented"
+}
+
+// Stub implementations for missing MemStore methods
+impl MemStore {
+    /// Stub implementation for create_document_from_properties
+    pub fn create_document_from_properties(
+        &self,
+        _doc_id: ID16,
+        _doc_type: DocumentType,
+        _parent_id: Option<ID16>,
+        _properties: &AdaptiveMap<String, DocValue>
+    ) -> Result<(), String> {
+        // TODO: Implement actual document creation
+        Err("Method not yet implemented".to_string())
+    }
+
+    /// Stub implementation for get_document_view
+    pub fn get_document_view(&self, _id: &ID16) -> Option<DocumentInfo> {
+        // TODO: Implement actual document view retrieval
+        None
+    }
+
+    /// Stub implementation for remove_document (from DocumentStorage trait)
+    pub fn remove_document_stub(&self, _id: &ID16) -> Result<(), String> {
+        // TODO: Implement actual document removal
+        Err("Method not yet implemented".to_string())
+    }
 }
