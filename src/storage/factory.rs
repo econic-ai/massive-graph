@@ -1,7 +1,13 @@
 //! Storage factory for creating storage implementations based on configuration
 
+use tracing::info;
+
 use crate::core::config::{StorageConfig, StorageType};
+use crate::core::types::ID32;
 use crate::storage::MemStore;
+
+/// UserID is an alias for ID32
+pub type UserID = ID32;
 
 /// Storage factory error
 #[derive(Debug)]
@@ -10,6 +16,8 @@ pub enum StorageFactoryError {
     UnsupportedStorageType(StorageType),
     /// Storage initialization failed
     InitializationFailed(String),
+    ConfigError(String),
+    InitializationError(String),
 }
 
 impl std::fmt::Display for StorageFactoryError {
@@ -21,6 +29,8 @@ impl std::fmt::Display for StorageFactoryError {
             StorageFactoryError::InitializationFailed(msg) => {
                 write!(f, "Storage initialization failed: {}", msg)
             }
+            StorageFactoryError::ConfigError(msg) => write!(f, "Storage config error: {}", msg),
+            StorageFactoryError::InitializationError(msg) => write!(f, "Storage initialization error: {}", msg),
         }
     }
 }
@@ -28,10 +38,21 @@ impl std::fmt::Display for StorageFactoryError {
 impl std::error::Error for StorageFactoryError {}
 
 /// Create a storage implementation based on configuration
-pub fn create_storage(config: &StorageConfig) -> Result<MemStore, StorageFactoryError> {
-    match config.storage_type {
+/// 
+/// # Arguments
+/// 
+/// * `storage_type` - Storage type configuration
+/// * `user_id` - User ID for the storage instance
+/// 
+/// # Returns
+/// 
+/// * `Ok(MemStore)` - Successfully created storage
+/// * `Err(StorageFactoryError)` - Configuration or initialization error
+pub fn create_storage(storage_type: StorageType, user_id: UserID) -> Result<MemStore, StorageFactoryError> {
+    info!("Creating storage: {:?}", storage_type);
+    match storage_type {
         StorageType::Memory => {
-            let store = MemStore::new();
+            let store = MemStore::new(user_id);
             Ok(store)
         }
         StorageType::Disk => {
@@ -57,7 +78,7 @@ mod tests {
             ..Default::default()
         };
         
-        let storage = create_storage(&config).unwrap();
+        let storage = create_storage(StorageType::Memory, ID32::random()).unwrap();
         assert_eq!(storage.document_count(), 0);
     }
 
@@ -68,7 +89,7 @@ mod tests {
             ..Default::default()
         };
         
-        let result = create_storage(&config);
+        let result = create_storage(StorageType::Disk, ID32::random());
         assert!(result.is_err());
         
         if let Err(StorageFactoryError::UnsupportedStorageType(StorageType::Disk)) = result {
@@ -85,7 +106,7 @@ mod tests {
             ..Default::default()
         };
         
-        let result = create_storage(&config);
+        let result = create_storage(StorageType::Distributed, ID32::random());
         assert!(result.is_err());
         
         if let Err(StorageFactoryError::UnsupportedStorageType(StorageType::Distributed)) = result {
