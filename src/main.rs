@@ -4,11 +4,15 @@
 //! Supports HTTP, WebSocket, and QUIC/WebTransport protocols
 
 use clap::{Arg, Command};
-use massive_graph::{core::Config, Result};
+use massive_graph::{
+    api::server::start_server,
+    core::{config::Config, error::Result},
+    storage::MemStore,
+    constants::{DEFAULT_MAX_MEMORY}
+};
 use std::sync::Arc;
 use tokio::signal;
 use tracing::{info, warn};
-use massive_graph::api::start_server;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,10 +90,14 @@ async fn main() -> Result<()> {
     // Validate system requirements
     validate_system_requirements(&config)?;
 
+    // User id
+    let user_id = massive_graph::core::types::ID32::random(); // Create a node-level user ID for now
+
     // Initialize storage
-    let storage = massive_graph::storage::create_storage(&config.storage)
+    info!("Initialising storage: {:?}", config.storage.storage_type);
+    let storage = massive_graph::storage::create_storage(config.storage.storage_type.clone(), user_id)
         .map_err(|e| massive_graph::Error::config(format!("Storage initialization failed: {}", e)))?;
-    info!("Storage initialized: {:?}", config.storage.storage_type);
+    info!("Storage initialised: {:?}", config.storage.storage_type);
 
     // Wrap storage in Arc for sharing between servers (reads are lock-free)
     let storage = Arc::new(storage);
@@ -220,7 +228,7 @@ fn validate_port_availability(config: &Config) -> Result<()> {
 fn get_available_memory() -> usize {
     // This is a simplified implementation
     // In production, you'd want to use a proper system info crate
-    8 * 1024 * 1024 * 1024 // Default to 8GB
+    DEFAULT_MAX_MEMORY // Default to 8GB
 }
 
 /// Setup graceful shutdown signal handling

@@ -14,12 +14,13 @@ pub mod core;
 
 // Main functional modules
 pub mod storage;
+pub mod delta;
 pub mod api;
 pub mod system;
 pub mod security;
 
-// Re-export commonly used items for convenience
-pub use core::{Error, Result, Config, Value};
+// Re-export commonly used items
+pub use core::{Error, Result, Config};
 
 /// Crate version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,4 +43,13 @@ pub fn init() -> Result<()> {
     system::metrics::init_registry();
     
     Ok(())
-} 
+}
+
+/// Global constants used throughout the codebase
+pub mod constants;
+
+// Re-export commonly used types
+pub use core::{ID16, ID8};
+pub use core::types::document::{Value, Document, AdaptiveMap};
+pub use storage::{MemStore, DocumentStorage};
+pub use constants::{BASE62_CHARS, CHUNK_SIZE}; 
