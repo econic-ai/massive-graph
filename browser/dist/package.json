@@ -1,0 +1,19 @@
+{
+  "name": "@econic/massive-graph-browser",
+  "type": "module",
+  "collaborators": [
+    "Jordan Rancie <jordan@econic.ai>"
+  ],
+  "description": "Massive Graph browser package",
+  "version": "0.1.0",
+  "files": [
+    "massive_graph_browser_bg.wasm",
+    "massive_graph_browser.js",
+    "massive_graph_browser.d.ts"
+  ],
+  "main": "massive_graph_browser.js",
+  "types": "massive_graph_browser.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

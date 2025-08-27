@@ -40,7 +40,7 @@ fi
 
 # Build from current directory (already in browser)
 # Set target directory to be within browser folder
-if CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic --no-pack $BUILD_MODE; then
+if CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic $BUILD_MODE; then
     # Remove the auto-generated .gitignore file
     if [ -f "dist/.gitignore" ]; then
         rm dist/.gitignore

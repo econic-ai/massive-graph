@@ -53,5 +53,5 @@ exec cargo watch \
     -w "browser/Cargo.toml" \
     -w "crates/massive-graph-core/src" \
     -w "crates/massive-graph-core/Cargo.toml" \
-    -s "cd browser && CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic --no-pack --dev && rm -f dist/.gitignore" \
+    -s "cd browser && CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic --dev && rm -f dist/.gitignore" \
     --notify
