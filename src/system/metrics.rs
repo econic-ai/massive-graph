@@ -3,7 +3,7 @@
 //! This module provides high-performance metrics collection using Prometheus,
 //! optimized for minimal overhead during normal operations.
 
-use crate::Result;
+use crate::types::Result;
 use once_cell::sync::Lazy;
 use prometheus::{
     register_gauge, register_histogram, register_int_counter,

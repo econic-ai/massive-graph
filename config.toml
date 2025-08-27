@@ -1,0 +1,12 @@
+# Massive Graph Database Configuration
+
+[server]
+http_addr = "0.0.0.0:8080"
+
+[storage]
+storage_type = "Simple"
+data_dir = "./data"
+
+[metrics]
+enable_prometheus = false
+metrics_addr = "0.0.0.0:9090"

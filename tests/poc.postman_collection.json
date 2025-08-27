@@ -1,0 +1,1178 @@
+{
+  "info": {
+    "name": "Massive Graph API Tests",
+    "description": "End-to-end API test collection for Massive Graph with comprehensive validation:\n\n1. **Flow 1: Create → Get → Delete → Get** - Tests complete document lifecycle with server-generated IDs\n2. **Flow 2: Create → Apply Delta → Get Latest** - Tests delta application with data verification (updates are only done through deltas)\n3. **Flow 3: Document ID Logic** - Tests document creation with client-provided IDs, duplicate prevention, invalid ID format handling, and data integrity\n4. **Error Handling** - Tests proper 404/400/409 status codes and error responses\n5. **Validation** - Tests ID formats, timestamps, versioning, and data integrity with randomized values\n\nTest failures indicate which features still need implementation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "document_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_document_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_random_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_random_value",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_random_number",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has healthy status\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"healthy\");",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is less than 200ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "System Info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has correct system name\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.name).to.eql(\"Massive Graph POC\");",
+                  "});",
+                  "",
+                  "pm.test(\"Response has capabilities array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.capabilities).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/info",
+              "host": ["{{base_url}}"],
+              "path": ["info"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 1: Create-Get-Delete-Get",
+      "item": [
+        {
+          "name": "1. Create Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response indicates success\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test(\"Document ID is valid 16-character base62 identifier\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    // ID should be a valid base62 string (16 chars using 0-9a-zA-Z)",
+                  "    pm.expect(jsonData.data.id).to.match(/^[0-9a-zA-Z]{16}$/);",
+                  "    ",
+                  "    // Save document ID for subsequent requests",
+                  "    pm.collectionVariables.set(\"document_id\", jsonData.data.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Document has correct type and properties\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.doc_type).to.eql(\"text\");",
+                  "    pm.expect(jsonData.data.version).to.eql(1);",
+                  "    pm.expect(jsonData.data.created_at).to.exist;",
+                  "    pm.expect(jsonData.data.updated_at).to.exist;",
+                  "});",
+                  "",
+                  "pm.test(\"Document properties match request\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.properties.title).to.eql(\"Test Document for Flow 1\");",
+                  "    pm.expect(jsonData.data.properties.content).to.eql(\"This is a test document created by Postman\");",
+                  "    pm.expect(jsonData.data.properties.author).to.eql(\"Postman Test Suite\");",
+                  "    ",
+                  "    // Store random values for verification in GET request",
+                  "    pm.collectionVariables.set(\"random_key\", jsonData.data.properties.random_key);",
+                  "    pm.collectionVariables.set(\"random_value\", jsonData.data.properties.random_value);",
+                  "    pm.collectionVariables.set(\"random_number\", jsonData.data.properties.random_number);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"doc_type\": \"text\",\n    \"parent_id\": null,\n    \"properties\": {\n        \"title\": \"Test Document for Flow 1\",\n        \"content\": \"This is a test document created by Postman\",\n        \"author\": \"Postman Test Suite\",\n        \"timestamp\": \"{{$timestamp}}\",\n        \"random_key\": \"test_{{$randomInt}}_{{$guid}}\",\n        \"random_value\": \"{{$randomWords}}\",\n        \"random_number\": {{$randomInt}}\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            }
+          }
+        },
+        {
+          "name": "2. Get Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response indicates success\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test(\"Document ID matches requested ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedId = pm.collectionVariables.get(\"document_id\");",
+                  "    pm.expect(jsonData.data.id).to.eql(expectedId);",
+                  "});",
+                  "",
+                  "pm.test(\"Retrieved document matches created document exactly\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Must return the exact document that was created",
+                  "    pm.expect(jsonData.data.doc_type).to.eql(\"text\");",
+                  "    pm.expect(jsonData.data.properties.title).to.eql(\"Test Document for Flow 1\");",
+                  "    pm.expect(jsonData.data.properties.content).to.eql(\"This is a test document created by Postman\");",
+                  "    pm.expect(jsonData.data.properties.author).to.eql(\"Postman Test Suite\");",
+                  "    pm.expect(jsonData.data.version).to.eql(1);",
+                  "    ",
+                  "    // Verify random values match exactly what was created",
+                  "    pm.expect(jsonData.data.properties.random_key).to.eql(pm.collectionVariables.get(\"random_key\"));",
+                  "    pm.expect(jsonData.data.properties.random_value).to.eql(pm.collectionVariables.get(\"random_value\"));",
+                  "    pm.expect(jsonData.data.properties.random_number).to.eql(pm.collectionVariables.get(\"random_number\"));",
+                  "});",
+                  "",
+                  "pm.test(\"Document timestamps are valid\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.created_at).to.exist;",
+                  "    pm.expect(jsonData.data.updated_at).to.exist;",
+                  "    // Timestamps should be recent (within last 5 minutes)",
+                  "    const now = Date.now();",
+                  "    const createdAt = new Date(jsonData.data.created_at).getTime();",
+                  "    pm.expect(now - createdAt).to.be.below(300000); // 5 minutes",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "3. Delete Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is empty\", function () {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Get Deleted Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Response indicates document not found\", function () {",
+                  "    // 404 may return empty body, so check if there's content first",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        pm.expect(jsonData.error).to.include('not found');",
+                  "    } else {",
+                  "        // Empty response is acceptable for 404",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"No data returned for deleted document\", function () {",
+                  "    // Skip this test if response is empty (valid for 404)",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.data).to.be.null;",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 2: Create-ApplyDelta-GetLatest",
+      "item": [
+        {
+          "name": "1. Create Document with Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Document created successfully with valid ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.id).to.exist;",
+                  "    pm.expect(jsonData.data.id).to.match(/^[0-9a-zA-Z]{16}$/);",
+                  "    pm.expect(jsonData.data.doc_type).to.eql(\"json\");",
+                  "    pm.expect(jsonData.data.version).to.eql(1);",
+                  "    ",
+                  "    // Save document ID for delta operations",
+                  "    pm.collectionVariables.set(\"document_id\", jsonData.data.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Initial data structure matches request exactly\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.properties.title).to.eql(\"Delta Test Document\");",
+                  "    pm.expect(jsonData.data.properties.version).to.eql(1);",
+                  "    pm.expect(jsonData.data.properties.data.field1).to.eql(\"initial value\");",
+                  "    pm.expect(jsonData.data.properties.data.field2).to.eql(42);",
+                  "    pm.expect(jsonData.data.properties.data.nested.value).to.eql(\"test\");",
+                  "    ",
+                  "    // Store random values for verification after delta application",
+                  "    pm.collectionVariables.set(\"random_delta_key\", jsonData.data.properties.data.random_delta_key);",
+                  "    pm.collectionVariables.set(\"random_delta_value\", jsonData.data.properties.data.random_delta_value);",
+                  "    pm.collectionVariables.set(\"random_delta_number\", jsonData.data.properties.data.random_delta_number);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"doc_type\": \"json\",\n    \"parent_id\": null,\n    \"properties\": {\n        \"title\": \"Delta Test Document\",\n        \"version\": 1,\n        \"data\": {\n            \"field1\": \"initial value\",\n            \"field2\": 42,\n            \"nested\": {\n                \"value\": \"test\",\n                \"timestamp\": \"{{$timestamp}}\"\n            },\n            \"random_delta_key\": \"delta_{{$randomInt}}_{{$guid}}\",\n            \"random_delta_value\": \"{{$randomWords}}\",\n            \"random_delta_number\": {{$randomInt}}\n        }\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            }
+          }
+        },
+        {
+          "name": "2. Apply Deltas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All deltas applied successfully\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    pm.expect(jsonData.data).to.have.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test(\"Each delta has valid ID and metadata\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    jsonData.data.forEach((delta, index) => {",
+                  "        pm.expect(delta.success).to.be.true;",
+                  "        pm.expect(delta.delta_id).to.exist;",
+                  "        pm.expect(delta.delta_id).to.match(/^[0-9a-zA-Z]{8}$/); // 8-byte delta ID",
+                  "        pm.expect(delta.sequence).to.be.a('number');",
+                  "        pm.expect(delta.applied_at).to.exist;",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Delta operations reference correct document\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedDocId = pm.collectionVariables.get(\"document_id\");",
+                  "    jsonData.data.forEach(delta => {",
+                  "        pm.expect(delta.target_doc_id).to.eql(expectedDocId);",
+                  "        pm.expect(delta.timestamp).to.exist;",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n    {\n        \"operation\": \"property_set\",\n        \"path\": \"/data/field1\",\n        \"value\": \"updated value\"\n    },\n    {\n        \"operation\": \"property_set\",\n        \"path\": \"/data/field3\",\n        \"value\": \"new field added by delta\"\n    },\n    {\n        \"operation\": \"property_increment\",\n        \"path\": \"/data/field2\",\n        \"value\": 8\n    }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}/deltas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}", "deltas"]
+            }
+          }
+        },
+        {
+          "name": "3. Get Latest Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Document retrieved successfully\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get(\"document_id\"));",
+                  "});",
+                  "",
+                  "pm.test(\"Document version incremented after delta application\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Version should be incremented after applying 3 deltas",
+                  "    pm.expect(jsonData.data.version).to.be.above(1);",
+                  "});",
+                  "",
+                  "pm.test(\"CRITICAL: All delta operations must be applied to document data\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Delta 1: property_set /data/field1 = \"updated value\"",
+                  "    pm.expect(jsonData.data.properties.data.field1).to.eql(\"updated value\");",
+                  "    ",
+                  "    // Delta 2: property_set /data/field3 = \"new field added by delta\"", 
+                  "    pm.expect(jsonData.data.properties.data.field3).to.eql(\"new field added by delta\");",
+                  "    ",
+                  "    // Delta 3: property_increment /data/field2 += 8 (42 + 8 = 50)",
+                  "    pm.expect(jsonData.data.properties.data.field2).to.eql(50);",
+                  "});",
+                  "",
+                  "pm.test(\"Original data preserved where not modified\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // These should remain unchanged",
+                  "    pm.expect(jsonData.data.properties.title).to.eql(\"Delta Test Document\");",
+                  "    pm.expect(jsonData.data.properties.data.nested.value).to.eql(\"test\");",
+                  "    ",
+                  "    // Verify random values are preserved after delta operations",
+                  "    pm.expect(jsonData.data.properties.data.random_delta_key).to.eql(pm.collectionVariables.get(\"random_delta_key\"));",
+                  "    pm.expect(jsonData.data.properties.data.random_delta_value).to.eql(pm.collectionVariables.get(\"random_delta_value\"));",
+                  "    pm.expect(jsonData.data.properties.data.random_delta_number).to.eql(pm.collectionVariables.get(\"random_delta_number\"));",
+                  "});",
+                  "",
+                  "pm.test(\"Modified timestamp updated after delta application\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.updated_at).to.exist;",
+                  "    // Modified timestamp should be more recent than created timestamp",
+                  "    const createdAt = new Date(jsonData.data.created_at).getTime();",
+                  "    const modifiedAt = new Date(jsonData.data.updated_at).getTime();",
+                  "    pm.expect(modifiedAt).to.be.at.least(createdAt);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Get Delta History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Delta history contains exactly 3 applied deltas\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    pm.expect(jsonData.data).to.have.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test(\"Each delta in history has required metadata\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedDocId = pm.collectionVariables.get(\"document_id\");",
+                  "    ",
+                  "    jsonData.data.forEach((delta, index) => {",
+                  "        pm.expect(delta.delta_id).to.exist;",
+                  "        pm.expect(delta.delta_id).to.match(/^[0-9a-zA-Z]{8}$/);",
+                  "        pm.expect(delta.target_doc_id).to.eql(expectedDocId);",
+                  "        pm.expect(delta.sequence).to.be.a('number');",
+                  "        pm.expect(delta.applied_at).to.exist;",
+                  "        pm.expect(delta.status).to.eql('Applied');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Delta operations are stored with correct order\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Verify deltas are in sequence order",
+                  "    for (let i = 1; i < jsonData.data.length; i++) {",
+                  "        pm.expect(jsonData.data[i].sequence).to.be.above(jsonData.data[i-1].sequence);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}/deltas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}", "deltas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Flow 3: Document ID Logic",
+      "item": [
+        {
+          "name": "1. Create Document with Specific ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate a random 16-character base62 ID for client-specified creation",
+                  "function generateBase62Id() {",
+                  "    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';",
+                  "    let result = '';",
+                  "    for (let i = 0; i < 16; i++) {",
+                  "        result += chars.charAt(Math.floor(Math.random() * chars.length));",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "const clientId = generateBase62Id();",
+                  "pm.collectionVariables.set('client_document_id', clientId);",
+                  "",
+                  "// Generate random properties for validation",
+                  "const randomKey = 'client_' + Math.random().toString(36).substring(7);",
+                  "const randomValue = 'value_' + Math.random().toString(36).substring(7);",
+                  "const randomNumber = Math.floor(Math.random() * 1000);",
+                  "",
+                  "pm.collectionVariables.set('client_random_key', randomKey);",
+                  "pm.collectionVariables.set('client_random_value', randomValue);",
+                  "pm.collectionVariables.set('client_random_number', randomNumber);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates success', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Document ID matches client-specified ID', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedId = pm.collectionVariables.get('client_document_id');",
+                  "    pm.expect(jsonData.data.id).to.eql(expectedId);",
+                  "});",
+                  "",
+                  "pm.test('Document has correct type and properties', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.doc_type).to.eql('text');",
+                  "    pm.expect(jsonData.data.version).to.eql(1);",
+                  "    pm.expect(jsonData.data.created_at).to.exist;",
+                  "    pm.expect(jsonData.data.updated_at).to.exist;",
+                  "    pm.expect(jsonData.data.properties).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('Client-specified properties are preserved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedKey = pm.collectionVariables.get('client_random_key');",
+                  "    const expectedValue = pm.collectionVariables.get('client_random_value');",
+                  "    const expectedNumber = parseInt(pm.collectionVariables.get('client_random_number'));",
+                  "    ",
+                  "    pm.expect(jsonData.data.properties[expectedKey]).to.eql(expectedValue);",
+                  "    pm.expect(jsonData.data.properties.client_random_number).to.eql(expectedNumber);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id\": \"{{client_document_id}}\",\n    \"doc_type\": \"text\",\n    \"parent_id\": null,\n    \"properties\": {\n        \"title\": \"Client-Specified Document\",\n        \"description\": \"This document was created with a client-specified ID\",\n        \"{{client_random_key}}\": \"{{client_random_value}}\",\n        \"client_random_number\": {{client_random_number}},\n        \"created_at\": \"{{$timestamp}}\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            }
+          }
+        },
+        {
+          "name": "2. Try to Create Document with Same ID (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409 Conflict or 400 Bad Request', function () {",
+                  "    // Should fail because document with this ID already exists",
+                  "    pm.expect(pm.response.code).to.be.oneOf([409, 400]);",
+                  "});",
+                  "",
+                  "pm.test('Error response indicates ID conflict', function () {",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        // Error should mention conflict, duplicate, or already exists",
+                  "        pm.expect(jsonData.error.toLowerCase()).to.satisfy(function(error) {",
+                  "            return error.includes('conflict') || error.includes('duplicate') || error.includes('already exists') || error.includes('exists');",
+                  "        });",
+                  "    } else {",
+                  "        // Empty response is acceptable for error cases",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Duplicate creation prevented', function () {",
+                  "    // Verify that the duplicate creation was rejected",
+                  "    pm.expect(pm.response.code).to.not.equal(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id\": \"{{client_document_id}}\",\n    \"doc_type\": \"text\",\n    \"parent_id\": null,\n    \"properties\": {\n        \"title\": \"Duplicate Document (Should Fail)\",\n        \"description\": \"This should not be created due to ID conflict\",\n        \"malicious_data\": \"This should not overwrite the original\",\n        \"created_at\": \"{{$timestamp}}\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            }
+          }
+        },
+        {
+          "name": "3. Get Document with Client ID (Verify Original)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates success', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Document ID matches client-specified ID', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedId = pm.collectionVariables.get('client_document_id');",
+                  "    pm.expect(jsonData.data.id).to.eql(expectedId);",
+                  "});",
+                  "",
+                  "pm.test('Original document data preserved (not overwritten)', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Verify original title is preserved",
+                  "    pm.expect(jsonData.data.properties.title).to.eql('Client-Specified Document');",
+                  "    pm.expect(jsonData.data.properties.description).to.eql('This document was created with a client-specified ID');",
+                  "    ",
+                  "    // Verify malicious data from duplicate attempt is NOT present",
+                  "    pm.expect(jsonData.data.properties.malicious_data).to.be.undefined;",
+                  "});",
+                  "",
+                  "pm.test('Client-specified random properties are preserved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedKey = pm.collectionVariables.get('client_random_key');",
+                  "    const expectedValue = pm.collectionVariables.get('client_random_value');",
+                  "    const expectedNumber = parseInt(pm.collectionVariables.get('client_random_number'));",
+                  "    ",
+                  "    pm.expect(jsonData.data.properties[expectedKey]).to.eql(expectedValue);",
+                  "    pm.expect(jsonData.data.properties.client_random_number).to.eql(expectedNumber);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{client_document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{client_document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Client-Specified Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 No Content', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('Response body is empty', function () {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{client_document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{client_document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "5. Confirm Deletion of Client-Specified Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error response structure is correct', function () {",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        // Check for either 'data' or 'details' field being null",
+                  "        pm.expect(jsonData.data || jsonData.details).to.be.null;",
+                  "    } else {",
+                  "        // Empty response is acceptable for 404",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Document successfully deleted', function () {",
+                  "    // 404 confirms the document no longer exists",
+                  "    pm.expect(pm.response.code).to.equal(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{client_document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{client_document_id}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Try to Create Document with Invalid ID Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    // Should fail due to invalid ID format",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error response indicates invalid ID format', function () {",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        // Error should mention ID format, length, or characters",
+                  "        pm.expect(jsonData.error.toLowerCase()).to.satisfy(function(error) {",
+                  "            return error.includes('id') && (error.includes('format') || error.includes('16') || error.includes('character'));",
+                  "        });",
+                  "        // Check for either 'data' or 'details' field being null",
+                  "        pm.expect(jsonData.data || jsonData.details).to.be.null;",
+                  "    } else {",
+                  "        // Empty response is acceptable for error cases",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Invalid ID creation prevented', function () {",
+                  "    // Verify that the invalid ID creation was rejected",
+                  "    pm.expect(pm.response.code).to.equal(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id\": \"invalid_id_format_123\",\n    \"doc_type\": \"text\",\n    \"parent_id\": null,\n    \"properties\": {\n        \"title\": \"Document with Invalid ID\",\n        \"description\": \"This should fail due to invalid ID format\",\n        \"test_data\": \"This should not be created\",\n        \"created_at\": \"{{$timestamp}}\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            },
+            "description": "Tests creating a document with an invalid ID format (not 16-character base62)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Additional Tests",
+      "item": [
+
+        {
+          "name": "Test Invalid Document ID Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request or 404 Not Found\", function () {",
+                  "    // Could be 400 for invalid format or 404 for not found",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response for invalid ID format\", function () {",
+                  "    // Response may be empty or contain error details",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        // Check for either 'data' or 'details' field being null",
+                  "        pm.expect(jsonData.data || jsonData.details).to.be.null;",
+                  "    } else {",
+                  "        // Empty response is acceptable for error cases",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Invalid ID format handled gracefully\", function () {",
+                  "    // The ID 'non_existent_document_12345' is not a valid 16-character base62 ID",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        // Error message might mention invalid format or not found",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is reasonable for validation errors\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(100);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/non_existent_document_12345",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "non_existent_document_12345"]
+            }
+          }
+        },
+        {
+          "name": "Test Non-existent Document with Valid ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response structure is correct\", function () {",
+                  "    // 404 may return empty body, so check if there's content first",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.exist;",
+                  "        pm.expect(jsonData.data).to.be.null;",
+                  "    } else {",
+                  "        // Empty response is acceptable for 404",
+                  "        pm.expect(responseText).to.be.empty;",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Error message indicates document not found\", function () {",
+                  "    // Skip this test if response is empty (valid for 404)",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.error.toLowerCase()).to.include('not found');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is reasonable for non-existent lookups\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(100);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/documents/0123456789abcdef",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "0123456789abcdef"]
+            },
+            "description": "Tests retrieving a document with a valid 16-byte hex ID format that doesn't exist"
+          }
+        },
+        {
+          "name": "Test Invalid Delta Operations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response indicates invalid operation\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.false;",
+                  "    pm.expect(jsonData.error).to.exist;",
+                  "    pm.expect(jsonData.error).to.include('invalid operation');",
+                  "});",
+                  "",
+                  "pm.test(\"No deltas applied for invalid request\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n    {\n        \"operation\": \"invalid_operation\",\n        \"path\": \"/data/field1\",\n        \"value\": \"test\"\n    }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents/{{document_id}}/deltas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents", "{{document_id}}", "deltas"]
+            }
+          }
+        },
+        {
+          "name": "Test Malformed JSON Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Error response indicates malformed JSON\", function () {",
+                  "    // Check if there's a response body",
+                  "    const responseText = pm.response.text();",
+                  "    if (responseText && responseText.trim()) {",
+                  "        try {",
+                  "            const jsonData = pm.response.json();",
+                  "            pm.expect(jsonData.success).to.be.false;",
+                  "            pm.expect(jsonData.error).to.exist;",
+                  "        } catch (e) {",
+                  "            // If JSON parsing fails, that's also acceptable for malformed request",
+                  "            pm.expect(responseText).to.include('error');",
+                  "        }",
+                  "    } else {",
+                  "        // Some servers return empty 400 responses",
+                  "        pm.expect(pm.response.code).to.eql(400);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"doc_type\": \"text\", \"properties\": { \"title\": \"invalid json\"",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "documents"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

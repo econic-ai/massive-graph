@@ -12,15 +12,19 @@ static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 // Core foundational modules
 pub mod core;
 
+/// Type definitions for all data structures
+pub mod types;
+
 // Main functional modules
 pub mod storage;
 pub mod delta;
 pub mod api;
+pub mod comms;
 pub mod system;
-pub mod security;
 
 // Re-export commonly used items
-pub use core::{Error, Result, Config};
+pub use core::Config;
+pub use types::{Error, Result};
 
 /// Crate version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -48,8 +52,7 @@ pub fn init() -> Result<()> {
 /// Global constants used throughout the codebase
 pub mod constants;
 
-// Re-export commonly used types
-pub use core::{ID16, ID8};
-pub use core::types::document::{Value, Document, AdaptiveMap};
-pub use storage::{MemStore, DocumentStorage};
+// Re-export key types for external users
+pub use types::{ID16, ID8, ID32, Value, Document};
+pub use storage::{ZeroCopyStore, SimpleStore, DocumentStorage};
 pub use constants::{BASE62_CHARS, CHUNK_SIZE}; 

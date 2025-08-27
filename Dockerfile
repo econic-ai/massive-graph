@@ -17,8 +17,8 @@ RUN apt-get update && apt-get install -y \
 # Create app directory
 WORKDIR /app
 
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
+# Copy manifests and config
+COPY Cargo.toml Cargo.lock config.toml ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs
@@ -80,12 +80,13 @@ RUN useradd -r -s /bin/false -m -d /app massive-graph
 # Create data directory
 RUN mkdir -p /app/data && chown massive-graph:massive-graph /app/data
 
-# Copy the binary and scripts from builder stage
+# Copy the binary, scripts, and config from builder stage
 COPY --from=builder /app/target/release/massive-graph /usr/local/bin/massive-graph
+COPY --from=builder /app/config.toml /app/config.toml
 COPY .bin/prod.sh /app/.bin/prod.sh
 
 # Set ownership
-RUN chown massive-graph:massive-graph /usr/local/bin/massive-graph /app/.bin/prod.sh && \
+RUN chown massive-graph:massive-graph /usr/local/bin/massive-graph /app/config.toml /app/.bin/prod.sh && \
     chmod +x /app/.bin/prod.sh
 
 # Switch to app user

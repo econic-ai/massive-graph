@@ -1,2 +1,40 @@
+# Rust build artifacts
 /target
+/browser/target
+/server/target
+debug/
+*.pdb
+
+# Environment files
 .env
+.env.local
+.env.*.local
+
+# Node.js dependencies
+node_modules/
+tests/node_modules/
+
+# Test reports
+tests/reports/
+newman-report.*
+*.html
+*.xml
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp

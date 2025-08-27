@@ -7,6 +7,13 @@ As a graph db, it can also handle highly dynamic and complex permission models f
 ![Build Status](https://img.shields.io/badge/build-no%20CI%20configured-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 
+## 📋 Developer Guidance
+
+**🚨 IMPORTANT**: Before making any code changes, consult:
+- **[ARCHITECTURE_PRINCIPLES.md](./ARCHITECTURE_PRINCIPLES.md)** - Core design principles and patterns
+- **[DOCUMENT_TYPES.md](./DOCUMENT_TYPES.md)** - Document type specifications  
+- **[.cursorrules](./.cursorrules)** - AI-specific coding guidelines
+
 ## Key Architectural Decisions
 
 Massive Graph resolves this tension through fundamental design choices optimised for both performance and trust:

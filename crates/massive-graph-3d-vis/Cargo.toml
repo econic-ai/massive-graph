@@ -1,0 +1,47 @@
+[package]
+name = "three_d_vis"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+  "console",
+  "Document",
+  "Element",
+  "HtmlCanvasElement",
+  "WebGlRenderingContext",
+  "WebGl2RenderingContext",
+  "WebGlProgram",
+  "WebGlShader",
+  "WebGlBuffer",
+  "WebGlVertexArrayObject",
+  "WebGlUniformLocation",
+  "Window",
+  "Performance",
+  "HtmlElement",
+  "EventTarget",
+  "Event",
+  "MouseEvent",
+  "KeyboardEvent",
+] }
+js-sys = "0.3"
+wgpu = { version = "25.0.2", features = ["webgl", "webgpu"] }
+pollster = "0.3"
+bytemuck = { version = "1.4", features = ["derive"] }
+cgmath = "0.18"
+rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
+wasm-bindgen-futures = "0.4"
+
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[features]
+default = ["console_error_panic_hook"]

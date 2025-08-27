@@ -1,0 +1,29 @@
+[package]
+name = "massive-graph-browser"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jordan Rancie <jordan@econic.ai>"]
+description = "Massive Graph browser package"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+massive-graph-core = { path = "../crates/massive-graph-core" }
+
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+console_error_panic_hook = { workspace = true, optional = true }
+
+web-sys = { version = "0.3", features = ["console"] }
+
+## No async runtime needed for hello-world
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[features]
+default = ["console_error_panic_hook"]
