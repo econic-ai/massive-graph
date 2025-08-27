@@ -43,7 +43,7 @@ fi
 
 print_status "Starting WASM watch mode..."
 print_warning "Changes to browser or core library will trigger automatic rebuilds"
-print_status "Built files will be in: browser/pkg/"
+print_status "Built files will be in: browser/dist/"
 
 # Watch for changes and rebuild
 # Note: Running from project root, watching browser and core library
@@ -53,5 +53,5 @@ exec cargo watch \
     -w "browser/Cargo.toml" \
     -w "crates/massive-graph-core/src" \
     -w "crates/massive-graph-core/Cargo.toml" \
-    -s "cd browser && CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir pkg --scope econic --dev" \
+    -s "cd browser && CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic --no-pack --dev && rm -f dist/.gitignore" \
     --notify
