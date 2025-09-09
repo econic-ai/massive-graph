@@ -11,8 +11,11 @@ pub mod api;
 /// Application constants
 pub mod constants;
 
-/// Core system functionality (config, app state, factory)
-pub mod core;
+/// WebRTC implementation
+pub mod webrtc;
+
+/// QUIC ingress service
+pub mod quic;
 
 // Re-export core functionality
 pub use massive_graph_core::*;
