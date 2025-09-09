@@ -6,9 +6,11 @@ set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
-GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Logging configuration
@@ -41,6 +43,33 @@ print_log_info() {
     echo -e "${BLUE}[LOG]${NC} Logging to: $LOG_FILE"
     echo -e "${BLUE}[LOG]${NC} To tail logs: tail -f $LOG_FILE"
     echo -e "${BLUE}[LOG]${NC} To view recent: tail -n 100 $LOG_FILE"
+}
+
+# Function to format cargo output
+format_cargo_output() {
+    while IFS= read -r line; do
+        # Format error messages
+        if [[ "$line" =~ ^error ]]; then
+            echo -e "${RED}${BOLD}$line${NC}"
+        # Format warnings
+        elif [[ "$line" =~ ^warning ]]; then
+            echo -e "${YELLOW}$line${NC}"
+        # Format compilation progress
+        elif [[ "$line" =~ Compiling|Building|Finished ]]; then
+            echo -e "${GREEN}$line${NC}"
+        # Format file paths
+        elif [[ "$line" =~ ^[[:space:]] ]]; then
+            echo -e "${CYAN}$line${NC}"
+        # Format help messages
+        elif [[ "$line" =~ ^help: ]]; then
+            echo -e "${BLUE}$line${NC}"
+        # Format note messages
+        elif [[ "$line" =~ ^note: ]]; then
+            echo -e "${BLUE}$line${NC}"
+        else
+            echo "$line"
+        fi
+    done
 }
 
 setup_logging() {
@@ -118,4 +147,4 @@ exec cargo watch \
     -w crates/massive-graph-core/src \
     -w config.toml \
     -x "run --manifest-path server/Cargo.toml --bin massive-graph-server -- --config config.toml" \
-    --notify 2>&1 | tee -a "$LOG_FILE"
+    --notify 2>&1 | format_cargo_output | tee -a "$LOG_FILE"
