@@ -2,8 +2,8 @@
 
 use dashmap::DashMap;
 use std::sync::Arc;
+use crate::storage::StorageImpl;
 use crate::types::{UserId, DocId};
-use crate::DocumentStorage;
 use crate::storage::user_space::UserDocumentSpace;
 
 /// Flat Storage - Maps users to their isolated storage instances
@@ -13,14 +13,14 @@ use crate::storage::user_space::UserDocumentSpace;
 /// 
 /// Generic parameter S allows compile-time selection of storage implementation
 /// for zero-cost abstraction.
-pub struct Store<S: DocumentStorage + Clone + Send + Sync + 'static> {
+pub struct Store<S: StorageImpl> {
     /// Lock-free map of user ID to UserDocumentSpace instances
     user_spaces: DashMap<UserId, Arc<UserDocumentSpace<S>>>,
     /// Function to create new storage instances
     storage_factory: Arc<dyn Fn() -> S + Send + Sync>,
 }
 
-impl<S: DocumentStorage + Clone + Send + Sync + 'static> Store<S> {
+impl<S: StorageImpl> Store<S> {
     /// Create a new flat storage with a factory function for storage instances
     pub fn new<F>(storage_factory: F) -> Self
     where
@@ -85,16 +85,7 @@ impl<S: DocumentStorage + Clone + Send + Sync + 'static> Store<S> {
     pub fn apply_delta(&self, user_id: UserId, doc_id: DocId, delta: Vec<u8>) -> Result<(), String> {
         self.get_or_create_isolate(user_id).apply_delta(doc_id, delta)
     }
-    
-    /// Add a child relationship between documents for a specific user
-    pub fn add_child_relationship(&self, user_id: UserId, parent_id: DocId, child_id: DocId) -> Result<(), String> {
-        self.get_or_create_isolate(user_id).add_child_relationship(parent_id, child_id)
-    }
-    
-    /// Remove a child relationship between documents for a specific user
-    pub fn remove_child_relationship(&self, user_id: UserId, parent_id: DocId, child_id: DocId) -> Result<(), String> {
-        self.get_or_create_isolate(user_id).remove_child_relationship(parent_id, child_id)
-    }
+
 }
 
 // Type aliases for common configurations

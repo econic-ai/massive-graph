@@ -17,6 +17,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true, features = ["js"] }
 chrono = { workspace = true }
+toml = "0.9.5"
+tracing = { workspace = true }
 
 # Data structures (WASM-compatible from workspace)
 dashmap = { workspace = true }
@@ -24,6 +26,7 @@ arc-swap = { workspace = true }
 bytes = { workspace = true }
 bincode = { workspace = true }
 rmp-serde = { workspace = true }
+crossbeam = { workspace = true }
 
 # For ID generation (WASM-compatible)
 rand = { workspace = true }
@@ -32,15 +35,13 @@ rand = { workspace = true }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
+web-sys = { workspace = true, features = ["console"] }
 console_error_panic_hook = { workspace = true }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 # Native dependencies (non-WASM)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-once_cell = { workspace = true }
-prometheus = "0.13"
-crossbeam = { workspace = true }
-tracing = { workspace = true }
+prometheus = "0.14.0"
 
 [features]
 default = []

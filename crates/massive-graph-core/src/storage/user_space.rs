@@ -5,7 +5,12 @@ use crate::types::{UserId, DocId};
 use crate::DocumentStorage;
 use crate::types::storage::ChunkStorage;
 use crate::types::storage::ChunkRef;
-// use tracing::info; // TODO: Will be used when logging is implemented
+// use crate::{log_info, log_error};
+// use crate::core::logging::logging::{log_info, log_error};
+use crate::{log_info, log_error};
+
+
+// use info; // TODO: Will be used when logging is implemented
 
 
 #[allow(dead_code)] // POC: Struct will be used in future implementation
@@ -15,7 +20,8 @@ struct UserStorageSpace {
     // Storage by data type
     documents: ChunkStorage,      // Headers only (no version reference)
     deltas: ChunkStorage,         // All deltas
-    versions: ChunkStorage,       // Document versions (separate)
+    snapshots: ChunkStorage,     // Document versions (separate)
+    versions: ChunkStorage,     // Document versions (separate)
     
     // Indexes
     // indexes: [DashMap<DocId, ChunkRef>; DocumentType::MAX_TYPES],
@@ -62,11 +68,11 @@ impl<S: DocumentStorage> UserDocumentSpace<S> {
     
     /// Create a document for this user
     pub fn create_document(&self, doc_id: DocId, doc_data: Vec<u8>) -> Result<(), String> {
-        tracing::info!("🔒 UserDocumentSpace::create_document - user: {}, doc: {}, data_size: {}", self.user_id, doc_id, doc_data.len());
+        log_info!("🔒 UserDocumentSpace::create_document - user: {}, doc: {}, data_size: {}", self.user_id, doc_id, doc_data.len());
         let result = self.storage.create_document(doc_id, doc_data);
         match &result {
-            Ok(()) => tracing::info!("✅ UserDocumentSpace storage successful"),
-            Err(e) => tracing::error!("❌ UserDocumentSpace storage failed: {}", e),
+            Ok(()) => log_info!("✅ UserDocumentSpace storage successful"),
+            Err(e) => log_error!("❌ UserDocumentSpace storage failed: {}", e),
         }
         result
     }
@@ -91,18 +97,10 @@ impl<S: DocumentStorage> UserDocumentSpace<S> {
         self.storage.apply_delta(doc_id, delta)
     }
     
-    /// Add a child relationship between documents for this user
-    pub fn add_child_relationship(&self, parent_id: DocId, child_id: DocId) -> Result<(), String> {
-        self.storage.add_child_relationship(parent_id, child_id)
-    }
-    
-    /// Remove a child relationship between documents for this user
-    pub fn remove_child_relationship(&self, parent_id: DocId, child_id: DocId) -> Result<(), String> {
-        self.storage.remove_child_relationship(parent_id, child_id)
-    }
+
 }
 
 // Temporarily keep these type aliases for backward compatibility
 // TODO: Remove these once Store is implemented
-/// Type alias for UserDocumentSpace with SimpleStorage
-pub type SimpleUserDocumentSpace = UserDocumentSpace<crate::storage::SimpleStorage>;
+// Type alias for UserDocumentSpace with SimpleStorage
+// pub type SimpleUserDocumentSpace = UserDocumentSpace<crate::storage::SimpleStorage>;

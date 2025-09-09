@@ -79,18 +79,6 @@ impl DocumentStorage for ZeroCopyStorage {
         false
     }
     
-    /// Add child relationship - Shell implementation
-    fn add_child_relationship(&self, _parent_id: DocId, _child_id: DocId) -> Result<(), String> {
-        // TODO: Implement relationship management
-        Ok(())
-    }
-    
-    /// Remove child relationship - Shell implementation
-    fn remove_child_relationship(&self, _parent_id: DocId, _child_id: DocId) -> Result<(), String> {
-        // TODO: Implement relationship removal
-        Ok(())
-    }
-    
     /// Get document count - Shell implementation
     fn document_count(&self) -> usize {
         // TODO: Implement count tracking

@@ -4,5 +4,5 @@
 
 /// Returns a hello world string for testing
 pub fn hello_world() -> String {
-    "Hello from Massive Graph Core!".to_string()
+    "Hello from Massive Graph Core! Version 2.0.0".to_string()
 }

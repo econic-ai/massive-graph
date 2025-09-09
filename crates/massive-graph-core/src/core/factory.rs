@@ -7,6 +7,8 @@ use std::sync::Arc;
 use crate::core::app_state::AppState;
 use crate::core::config::{Config, StorageType};
 use crate::storage::{SimpleStore, ZeroCopyStore, SimpleStorage, ZeroCopyStorage};
+use crate::comms::network::Network;
+use crate::log_info;
 
 /// AppState factory errors
 #[derive(Debug)]
@@ -78,71 +80,75 @@ impl ConfiguredAppState {
         }
     }
     
-    /// Start the server with the appropriate storage type
-    pub async fn start_server(self) -> Result<(), Box<dyn std::error::Error>> {
-        let http_addr = self.http_addr();
+    /// Get the configuration
+    pub fn config(&self) -> &Config {
         match self {
-            ConfiguredAppState::Simple { storage, .. } => {
-                crate::api::server::start_server(http_addr, storage).await
-            }
-            ConfiguredAppState::ZeroCopy { storage, .. } => {
-                crate::api::server::start_server(http_addr, storage).await
-            }
+            ConfiguredAppState::Simple { app_state, .. } => &app_state.config,
+            ConfiguredAppState::ZeroCopy { app_state, .. } => &app_state.config,
         }
     }
+    
 }
 
-/// Create AppState based on configuration
-pub fn create_app_state(config: Config) -> Result<ConfiguredAppState, AppStateFactoryError> {
-    tracing::info!("Creating AppState with storage type: {:?}", config.storage.storage_type);
+/// Create AppState with SimpleStorage backend
+pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
+    log_info!("Creating AppState with SimpleStorage");
     
-    use crate::core::app_state::{AppState, MetricsServiceStub, LoggerServiceStub, 
-        HealthMonitorStub, ConnectionPoolStub, SecurityContextStub, 
-        CacheManagerStub, TaskSchedulerStub, EventBusStub};
+    log_info!("Initializing SimpleStore");
+    let store = SimpleStore::new(|| SimpleStorage::new());
+    let storage = Arc::new(store);
+    log_info!("SimpleStore initialized successfully");
+    
+    log_info!("Initializing Network");
+    let network = Network::new();
+    log_info!("Network initialized successfully");
+    
+    let app_state = AppState::new(
+        storage,
+        config,
+        network,
+    );
+    
+    log_info!("AppState with SimpleStorage created successfully");
+    app_state
+}
+
+/// Create AppState with ZeroCopyStorage backend
+pub fn create_app_state_with_zerocopy(config: Config) -> AppState<ZeroCopyStorage> {
+    log_info!("Creating AppState with ZeroCopyStorage");
+    
+    log_info!("Initializing ZeroCopyStore");
+    let store = ZeroCopyStore::new(|| ZeroCopyStorage::new());
+    let storage = Arc::new(store);
+    log_info!("ZeroCopyStore initialized successfully");
+    
+    log_info!("Initializing Network");
+    let network = Network::new();
+    log_info!("Network initialized successfully");
+    
+    let app_state = AppState::new(
+        storage,
+        config,
+        network,
+    );
+    
+    log_info!("AppState with ZeroCopyStorage created successfully");
+    app_state
+}
+
+/// Create AppState based on configuration (for server use)
+pub fn create_app_state(config: Config) -> Result<ConfiguredAppState, AppStateFactoryError> {
+    log_info!("Creating AppState with storage type: {:?}", config.storage.storage_type);
     
     match config.storage.storage_type {
         StorageType::Simple => {
-            tracing::info!("Initializing SimpleStore");
-            let store = SimpleStore::new(|| SimpleStorage::new());
-            let storage = Arc::new(store);
-            tracing::info!("SimpleStore initialized successfully");
-            
-            let app_state = AppState {
-                storage: storage.clone(),
-                config: config.clone(),
-                metrics: MetricsServiceStub,
-                logger: LoggerServiceStub,
-                health_monitor: HealthMonitorStub,
-                connection_pool: ConnectionPoolStub,
-                security: SecurityContextStub,
-                cache: CacheManagerStub,
-                scheduler: TaskSchedulerStub,
-                event_bus: EventBusStub,
-            };
-            
-            tracing::info!("AppState created successfully");
+            let app_state = create_app_state_with_simple(config.clone());
+            let storage = app_state.storage.clone();
             Ok(ConfiguredAppState::Simple { app_state, storage })
         }
         StorageType::ZeroCopy => {
-            tracing::info!("Initializing ZeroCopyStore");
-            let store = ZeroCopyStore::new(|| ZeroCopyStorage::new());
-            let storage = Arc::new(store);
-            tracing::info!("ZeroCopyStore initialized successfully");
-            
-            let app_state = AppState {
-                storage: storage.clone(),
-                config: config.clone(),
-                metrics: MetricsServiceStub,
-                logger: LoggerServiceStub,
-                health_monitor: HealthMonitorStub,
-                connection_pool: ConnectionPoolStub,
-                security: SecurityContextStub,
-                cache: CacheManagerStub,
-                scheduler: TaskSchedulerStub,
-                event_bus: EventBusStub,
-            };
-            
-            tracing::info!("AppState created successfully");
+            let app_state = create_app_state_with_zerocopy(config.clone());
+            let storage = app_state.storage.clone();
             Ok(ConfiguredAppState::ZeroCopy { app_state, storage })
         }
     }

@@ -44,3 +44,9 @@ pub fn apply_delta<S: DocumentStorage>(storage: &mut S, delta: &crate::delta::ty
 pub fn apply_delta_placeholder() -> Result<(), String> {
     Ok(())
 } 
+
+// Commented out until Delta::new() is implemented
+// /// Delta factory to create a delta from scratch
+// pub fn create_delta() -> Result<Delta, String> {
+//     Ok(Delta::new())
+// }

@@ -1,22 +1,25 @@
-//! Core application logic and configuration
+//! Core application components
+//! 
+//! This module contains core application state and configuration that works
+//! across both server and browser environments.
 
-/// Application configuration
+/// Cross-platform application configuration
 pub mod config;
 
-/// Application state management
+/// Cross-platform application state
 pub mod app_state;
 
-/// Factory pattern for app creation
+/// Factory for creating AppState
 pub mod factory;
 
-/// Multithreading utilities
-pub mod multithreading;
-
-/// Core utilities
+/// Cross-platform utilities
 pub mod utils;
 
-// Re-export commonly used items
-pub use config::{Config, load_config_or_default};
-pub use app_state::AppState;
-pub use factory::{ConfiguredAppState, create_app_state};
+/// Cross-platform logging
+pub mod logging;
 
+// Re-export commonly used items
+pub use config::Config;
+pub use app_state::AppState;
+pub use factory::{create_app_state_with_simple, create_app_state_with_zerocopy};
+// pub use logging::{log_info, log_warn, log_error, log_debug, log_trace};

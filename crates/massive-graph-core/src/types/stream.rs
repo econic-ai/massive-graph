@@ -1,33 +1,32 @@
-use std::sync::atomic::AtomicPtr;
-use super::StreamId;
+// use std::sync::atomic::{AtomicBool, AtomicPtr};
+// use super::StreamId;
 
-/// Stream reference - supports append-only linked lists
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct AppendOnlyStream {
-    stream_id: StreamId,
-    stream_type: StreamType,       // Type of stream
-    head: *const Node,           // First node
-    tail: AtomicPtr<Node>,       // Last node for O(1) append
-    last_processed: AtomicPtr<Node>, // Processing cursor
-}
+// /// In-memory reference to immutable delta
+// /// Used for building traversable chains
+// pub struct DeltaRef {
+//     pub ptr: *const WireDelta,  // Pointer to immutable delta
+//     pub delta_id: ID8,           // Cached for fast ordering
+//     pub timestamp: u64,          // Cached for time-based queries
+//     pub next: AtomicPtr<DeltaRef>, // Next in chain (lock-free)
+// }
 
-/// Node in a stream
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct Node {
-    // TODO: This is a placeholder for the actual data type.
-    // data_ref: Option,         // Points to any data type in chunk
-    next: AtomicPtr<Node>,      // Next in stream
-}
+// /// Lock-free append-only stream for deltas
+// pub struct AppendOnlyDeltaStream {
+//     pub head: *const DeltaRef,           // First delta (immutable after creation)
+//     pub tail: AtomicPtr<DeltaRef>,      // Last delta for O(1) append
+// }
 
-/// Stream types for different data patterns
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum StreamType {
-    /// Ordered delta operations
-    DeltaStream,
-    /// Document version snapshots
-    DocumentStream,
-    /// Text append operations
-    TextStream,
-    /// Binary data chunks
-    BinaryStream,
-}
+// impl AppendOnlyDeltaStream {
+//     /// Create new stream with initial delta
+//     pub fn new(first: *const DeltaRef) -> Self {
+//         Self {
+//             head: first,
+//             tail: AtomicPtr::new(first as *mut DeltaRef),
+//         }
+//     }
+    
+//     /// Append delta to stream atomically
+//     pub fn append(&self, delta_ref: *mut DeltaRef) {
+//         // Lock-free append via tail CAS
+//     }
+// }

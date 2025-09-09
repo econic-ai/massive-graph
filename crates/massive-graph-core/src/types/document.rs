@@ -2,10 +2,11 @@
 /// 
 /// This module contains document-related type definitions aligned with the architectural documentation.
 
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64};
-use super::{DocId, VersionId};
-use super::schemas::{Schema, SchemaFamilyId, PropertyId, PatternEntry};
-use super::stream::{AppendOnlyStream, Node};
+// use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64};
+// use crate::{types::Delta, UserId};
+
+// use super::{DocId, VersionId};
+
 
 /// Document type identifiers
 #[repr(u8)]
@@ -18,6 +19,8 @@ pub enum DocumentType {
     Graph = 1,
     /// State document (DAG Graph)
     StateGraph = 2,
+    /// Schema
+    Schema = 3,
     
     // Binary documents
     /// Raw binary data
@@ -66,57 +69,52 @@ pub enum DocumentType {
     EventStream = 84,
 }
 
-/// Document metadata structure
-/// Persistent document header (immutable, stored in chunks)
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct DocumentHeader {
-    document_id: DocId,             // 62base encoded 16 byte identifier
-    doc_type: DocumentType,         // Document type for operation validation
-    schema_family: SchemaFamilyId,  // Schema family for property resolution
-    deltas: AppendOnlyStream,       // Stream of all deltas since creation
-    versions: AppendOnlyStream,     // Stream of wire format snapshots
-    created_at: u64,                // Unix timestamp of creation
-}
+//// Document metadata structure
+//// Persistent document header (immutable, stored in chunks)
+// pub struct DocumentHeader {
+//     document_id: DocId,             // 62base encoded 16 byte identifier
+//     doc_type: DocumentType,         // Document type for operation validation
+//     first_delta: *const DeltaRef,              // Reference to immutable header in chunk memory
+//     created_at: u64,                // Unix timestamp of creation
+//     owner_id: UserId,               // User ID of the owner
+// }
 
-/// Immutable version snapshot (created on the side, stored in chunks)
-#[repr(align(64))]  // Cache-line aligned for performance
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct DocumentVersion {
-    version_id: VersionId,                  // Unique version identifier
-    schema_ptr: *const Schema,              // Schema for this version
-    schema_version: u16,                    // Schema version number
-    wire_version: *const u8,                // Direct pointer to wire format in chunk
-    wire_size: u32,                         // Size of wire format
-    delta_ref: *const Node,             // Delta this version represents
-    delta_sequence: u64,                    // Sequence number of delta
-}
+// /// Immutable version snapshot (created on the side, stored in chunks)
+// #[repr(align(64))]  // Cache-line aligned for performance
+// pub struct DocumentVersion {
+//     version_id: VersionId,                  // Unique version identifier
+//     schema_ptr: *const Schema,              // Schema for this version
+//     schema_version: u16,                    // Schema version number
+//     wire_version: *const u8,                // Direct pointer to wire format in chunk
+//     wire_size: u32,                         // Size of wire format
+//     delta_ref: *const Node,                 // Delta this version represents
+//     delta_sequence: u64,                    // Sequence number of delta
+// }
 
-/// Queue state - cache-line aligned, only writers touch this
-#[repr(align(64))]
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct DocumentState {
-    last_delta: AtomicPtr<Node>,    // Last delta in stream
-    pending_count: AtomicU32,           // Number of unapplied deltas
-    is_processing: AtomicBool,          // Currently generating snapshot       
-    last_updated: AtomicU64,            // Last update timestamp
-}
+// /// Queue state - cache-line aligned, only writers touch this
+// #[repr(align(64))]
+// pub struct DocumentState {
+//     last_delta: AtomicPtr<Node>,    // Last delta in stream
+//     pending_count: AtomicU32,           // Number of unapplied deltas
+//     is_processing: AtomicBool,          // Currently generating snapshot       
+//     last_updated: AtomicU64,            // Last update timestamp
+// }
 
-/// Document metadata for future extensions
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct DocumentIndexes {
-    // Indexes for the document
-    cached_property_patterns: [Option<PatternEntry>; 8],  // Hot path pattern cache
-    cached_property_ids: [PropertyId; 8],            // Hot path property ID cache        
-}
+// /// Document metadata for future extensions
+// pub struct DocumentIndexes {
+//     // Indexes for the document
+//     cached_property_patterns: [Option<PatternEntry>; 8],// Hot path pattern cache
+//     cached_property_ids: [PropertyId; 8],               // Hot path property ID cache        
+// }
 
 
-/// Runtime document
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct Document {
-    header: *const DocumentHeader,              // Reference to immutable header in chunk memory
-    current_version: AtomicPtr<DocumentVersion>,// Current version - single atomic pointer for lock-free reads
-    state: DocumentState,                       // Queue state - only writers touch this
-    indexes: DocumentIndexes,                   // Indexes for the document
+// /// Runtime document
+// #[allow(dead_code)] // POC: Fields will be used in future implementation
+// pub struct Document {
+//     header: *const DocumentHeader,              // Reference to immutable header in chunk memory
+//     current_version: AtomicPtr<DocumentVersion>,// Current version - single atomic pointer for lock-free reads
+//     state: DocumentState,                       // Queue state - only writers touch this
+//     indexes: DocumentIndexes,                   // Indexes for the document
     
-}
+// }
 

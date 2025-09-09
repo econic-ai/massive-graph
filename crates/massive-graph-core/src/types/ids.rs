@@ -4,7 +4,7 @@
 
 use std::fmt;
 use std::str::FromStr;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use serde::{Serialize, Deserialize};
 use crate::constants::{BASE62_CHARS, ID8_LENGTH, ID16_LENGTH, ID32_LENGTH};
 
@@ -61,11 +61,11 @@ impl ID16 {
     /// Generate a random 16-character base62 ID
     /// Base62 uses [0-9a-zA-Z] (digits, lowercase, uppercase)
     pub fn random() -> Self {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let mut bytes = [0u8; ID16_LENGTH];
         
         for i in 0..ID16_LENGTH {
-            bytes[i] = BASE62_CHARS[rng.gen_range(0..BASE62_CHARS.len())];
+            bytes[i] = BASE62_CHARS[rng.random_range(0..BASE62_CHARS.len())];
         }
         
         ID16(bytes)
@@ -109,11 +109,11 @@ impl ID8 {
     /// Generate a random 8-character base62 ID
     /// Base62 uses [0-9a-zA-Z] (digits, lowercase, uppercase)
     pub fn random() -> Self {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let mut bytes = [0u8; 8];
         
         for i in 0..8 {
-            bytes[i] = BASE62_CHARS[rng.gen_range(0..BASE62_CHARS.len())];
+            bytes[i] = BASE62_CHARS[rng.random_range(0..BASE62_CHARS.len())];
         }
         
         ID8(bytes)
@@ -140,11 +140,11 @@ impl ID32 {
     /// Generate a random 32-character base62 ID
     /// Base62 uses [0-9a-zA-Z] (digits, lowercase, uppercase)
     pub fn random() -> Self {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let mut bytes = [0u8; ID32_LENGTH];
         
         for i in 0..ID32_LENGTH {
-            bytes[i] = BASE62_CHARS[rng.gen_range(0..BASE62_CHARS.len())];
+            bytes[i] = BASE62_CHARS[rng.random_range(0..BASE62_CHARS.len())];
         }
         
         ID32(bytes)
