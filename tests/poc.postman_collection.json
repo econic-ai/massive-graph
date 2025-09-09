@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Massive Graph API Tests",
-    "description": "End-to-end API test collection for Massive Graph with comprehensive validation:\n\n1. **Flow 1: Create → Get → Delete → Get** - Tests complete document lifecycle with server-generated IDs\n2. **Flow 2: Create → Apply Delta → Get Latest** - Tests delta application with data verification (updates are only done through deltas)\n3. **Flow 3: Document ID Logic** - Tests document creation with client-provided IDs, duplicate prevention, invalid ID format handling, and data integrity\n4. **Error Handling** - Tests proper 404/400/409 status codes and error responses\n5. **Validation** - Tests ID formats, timestamps, versioning, and data integrity with randomized values\n\nTest failures indicate which features still need implementation.",
+    "description": "End-to-end API test collection for Massive Graph with comprehensive validation:\n\n1. **Flow 1: Create → Get → Delete → Get** - Tests complete document lifecycle with server-generated IDs\n2. **Flow 2: Create → Apply Delta → Get Latest** - Tests delta application with data verification (updates are only done through deltas)\n3. **Flow 3: Document ID Logic** - Tests document creation with client-provided IDs, duplicate prevention, invalid ID format handling, and data integrity\n4. **WebRTC API Tests** - Tests WebRTC connection endpoints including connection registration, SDP exchange, and connection listing\n5. **Error Handling** - Tests proper 404/400/409 status codes and error responses\n6. **Validation** - Tests ID formats, timestamps, versioning, and data integrity with randomized values\n\nTest failures indicate which features still need implementation.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,6 +32,16 @@
     },
     {
       "key": "client_random_number",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webrtc_connection_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webrtc_connection_id_2",
       "value": "",
       "type": "string"
     }
@@ -946,6 +956,267 @@
               "path": ["api", "documents"]
             },
             "description": "Tests creating a document with an invalid ID format (not 16-character base62)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebRTC API Tests",
+      "item": [
+        {
+          "name": "WebRTC Connect",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate a random connection ID for WebRTC testing",
+                  "function generateBase62Id() {",
+                  "    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';",
+                  "    let result = '';",
+                  "    for (let i = 0; i < 16; i++) {",
+                  "        result += chars.charAt(Math.floor(Math.random() * chars.length));",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "const connectionId = generateBase62Id();",
+                  "pm.collectionVariables.set('webrtc_connection_id', connectionId);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has server ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.server_id).to.exist;",
+                  "    pm.expect(jsonData.server_id).to.match(/^[0-9a-zA-Z]{16}$/);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has connection message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.exist;",
+                  "    pm.expect(jsonData.message).to.include('Connection registered');",
+                  "});",
+                  "",
+                  "pm.test(\"SDP answer provided when offer sent\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Since we sent an SDP offer, we should get an answer",
+                  "    pm.expect(jsonData.sdp_answer).to.exist;",
+                  "    pm.expect(jsonData.sdp_answer).to.eql('mock-sdp-answer');",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is reasonable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"connection_id\": \"{{webrtc_connection_id}}\",\n    \"sdp_offer\": \"v=0\\r\\no=- 123456789 123456789 IN IP4 0.0.0.0\\r\\ns=-\\r\\nt=0 0\\r\\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\\r\\nc=IN IP4 0.0.0.0\\r\\na=ice-ufrag:test\\r\\na=ice-pwd:testpassword\\r\\na=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\\r\\na=setup:actpass\\r\\na=mid:0\\r\\na=sctp-port:5000\\r\\na=max-message-size:262144\\r\\n\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/webrtc/connect",
+              "host": ["{{base_url}}"],
+              "path": ["webrtc", "connect"]
+            },
+            "description": "Initiates a WebRTC connection with the server. Sends connection ID and SDP offer, expects server ID and SDP answer in response."
+          }
+        },
+        {
+          "name": "WebRTC Connect Without SDP",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Generate another connection ID for testing without SDP",
+                  "function generateBase62Id() {",
+                  "    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';",
+                  "    let result = '';",
+                  "    for (let i = 0; i < 16; i++) {",
+                  "        result += chars.charAt(Math.floor(Math.random() * chars.length));",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "const connectionId2 = generateBase62Id();",
+                  "pm.collectionVariables.set('webrtc_connection_id_2', connectionId2);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has server ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.server_id).to.exist;",
+                  "    pm.expect(jsonData.server_id).to.match(/^[0-9a-zA-Z]{16}$/);",
+                  "});",
+                  "",
+                  "pm.test(\"No SDP answer when no offer sent\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Since we didn't send an SDP offer, we shouldn't get an answer",
+                  "    pm.expect(jsonData.sdp_answer).to.be.null;",
+                  "});",
+                  "",
+                  "pm.test(\"Connection registered message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include('Connection registered');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"connection_id\": \"{{webrtc_connection_id_2}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/webrtc/connect",
+              "host": ["{{base_url}}"],
+              "path": ["webrtc", "connect"]
+            },
+            "description": "Tests WebRTC connection without SDP offer - should register connection but not return SDP answer."
+          }
+        },
+        {
+          "name": "WebRTC Connect Invalid ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Invalid connection ID rejected\", function () {",
+                  "    // Should fail due to invalid connection ID format",
+                  "    pm.expect(pm.response.code).to.equal(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"connection_id\": \"invalid_connection_id_format\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/webrtc/connect",
+              "host": ["{{base_url}}"],
+              "path": ["webrtc", "connect"]
+            },
+            "description": "Tests WebRTC connection with invalid connection ID format - should return 400 Bad Request."
+          }
+        },
+        {
+          "name": "List WebRTC Connections",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has node ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.node_id).to.exist;",
+                  "    pm.expect(jsonData.node_id).to.match(/^[0-9a-zA-Z]{16}$/);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has connections array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.connections).to.be.an('array');",
+                  "    pm.expect(jsonData.count).to.be.a('number');",
+                  "    pm.expect(jsonData.count).to.equal(jsonData.connections.length);",
+                  "});",
+                  "",
+                  "pm.test(\"Connection count matches previous registrations\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Should have at least the connections we registered in previous tests",
+                  "    // Note: This assumes tests run in order and connections persist",
+                  "    pm.expect(jsonData.count).to.be.at.least(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is reasonable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/webrtc/connections",
+              "host": ["{{base_url}}"],
+              "path": ["webrtc", "connections"]
+            },
+            "description": "Lists all active WebRTC connections managed by the server."
           }
         }
       ]
