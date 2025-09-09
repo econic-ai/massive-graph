@@ -1,0 +1,35 @@
+# Massive Graph Database Configuration Example
+
+[server]
+# HTTP API server bind address
+http_addr = "0.0.0.0:8080"
+
+[storage]
+# Storage backend type: "Simple" or "ZeroCopy"
+storage_type = "ZeroCopy"
+# Data directory for future disk-based storage
+data_dir = "./data"
+
+[metrics]
+# Enable Prometheus metrics endpoint
+enable_prometheus = false
+# Metrics server bind address
+metrics_addr = "0.0.0.0:9090"
+
+# QUIC ingress service configuration (optional)
+[quic]
+# Enable QUIC service
+enabled = true
+# QUIC server bind address
+bind_address = "0.0.0.0:4433"
+# Number of shards for document routing
+shard_count = 16
+# Worker threads per shard
+workers_per_shard = 2
+# Maximum concurrent connections
+max_connections = 10000
+# Queue size for delta processing
+queue_size = 100000
+# TLS certificate path (optional - will use self-signed if not provided)
+# cert_path = "/path/to/cert.pem"
+# key_path = "/path/to/key.pem"

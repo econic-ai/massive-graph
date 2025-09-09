@@ -1,0 +1,5 @@
+[toolchain]
+# Use nightly for advanced WASM features like build-std
+channel = "nightly"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

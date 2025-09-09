@@ -4,52 +4,49 @@ The Massive Graph project is a redesign of the realtime document database with n
 It is above all designed for speed and performance, using a zero-copy delta propogation architecture.
 It supporst storage and collaboration on many data types - documents, graphs, streams, tensors, etc.
 
-## Application Generics
- - This is a database application written in Rust.
- - It has both a REST API and a Websocket implementation.
+## Application Binaries and Structure
+ - /server - This is the database application, written in Rust.
+ - /browser - This is wasm library used by web applications to integrate with the database. 
+ - /crates - the massive-graph-core - contains all common code across both projects
 
 ## Code Guidelines
- - Always ensure succint simple documentation to all functions and properties
- - Compile warnings are not acceptable. Fix them.
- - Make small incremental code changes, do not attempt large bodies of work without approval.
- - Do not use mod.rs files. Rather use the file with the same name as the directory. ie. ./storage/*.rs and ./storage.rs
-
-## Current Status
-- We are only at POC stage, and so some of the capabilties have not yet been included, with temporary solutions in place.
+ - Always include succint simple documentation to all functions and properties - single line is best.
+ - Fix warnings and errors - Even warnings are not acceptable.
 
 ## Supporting Documentation.
 The target architecture is documented in the docs directory.
- - ./docs/Document Meta and Property Index Architecture.md
- - ./docs/Delta Architecture Designed for Network Optimisation.md
- - ./docs/Delta Operations.md
- - ./docs/B-Tree Architecture for Text Files, Arrays and Tensors.md
- - ./docs/Reactive Event Driven Architecture using DAG Graph.md
- - ./docs/Designing Multithreading for Highest Throughput.md
- - ./docs/Memory Storage Architecture.md
- - ./docs/Data Types for Zero Copy Architecture.md
- - ./docs/Document Active State and Zero Locking Strategies.md
-
-These documents should be referenced for any architecture design or new code.
+Much is outdated, but it will provide insights into architectural goals
+./docs/Zero Overhead Storage Architecture Implementation.md
+./docs/Document Meta and Property Index Architecture.md
+./docs/Memory Storage Architecture v2.md
+./docs/Delta Processing and Propagation Architecture.md
+./docs/Massive Graph: Schema as Compression Dictionary Architecture.md
+./docs/Delta Architecture Designed for Network Optimisation.md
+./docs/Massive Graph: Property Index Implementation.md
+./docs/Delta Operations.md
+./docs/B-Tree Architecture for Text Files, Arrays and Tensors.md
+./docs/Reactive Event Driven Architecture using DAG Graph.md
+./docs/Memory Storage Architecture.md
+./docs/Data Types for Zero Copy Architecture.md
+./docs/Document Active State and Zero Locking Strategies.md
 
 ## Realtime Application Logs
-Never request to compile or run the application, `cargo watch -x run` is already running.
-
-### Current Log File
-- **Active log**: `massive-graph.log`
-
-### Log Information
-- These are live logs from the running application
+Never request to compile or run the application, `cargo watch -x run` is already running on both server and browser builds.
+- You can access the live logs from the running application
 - The logs include compilation output and runtime debug information
 - File is updated in real-time as the application runs
+
+**Server build and runtime logs**: ./logs/massive-graph-server.log
+**Browser build only logs**: ./logs/massive-graph-browser.log
 
 ### Useful Commands
 
 To tail this log in terminal:
 ```bash
-tail -f logs/massive-graph.log
+tail -f logs/massive-graph-server.log
 ```
 
 To see only the most recent entries:
 ```bash
-tail -n 100 logs/massive-graph.log
+tail -n 100 logs/massive-graph-browser.log
 ```
