@@ -11,8 +11,12 @@ use axum::{
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::sync::Arc;
-use massive_graph_core::types::{ID16, UserId};
+
+use massive_graph_core::{
+    comms::{
+        connection_manager::ConnectionStatus, network::{ConnectRequest, ConnectResponse}
+    }, core::AppState, log_debug, log_error, log_info, log_warn, storage::StorageImpl, types::{UserId, ID16}
+};
 
 // Response types
 /// Standard API response wrapper for all endpoints
@@ -22,10 +26,6 @@ pub struct ApiResponse<T> {
     pub success: bool,
     /// Response data (if successful)
     pub data: Option<T>,
-    /// Optional message describing the result
-    pub message: Option<String>,
-    /// Optional error details
-    pub error: Option<String>,
 }
 
 /// Error response for bad requests
@@ -45,18 +45,14 @@ impl<T> ApiResponse<T> {
         Self {
             success: true,
             data: Some(data),
-            message: None,
-            error: None,
         }
     }
 
     /// Create a successful API response with data and message
-    pub fn success_with_message(data: T, message: String) -> Self {
+    pub fn success_with_message(data: T, _message: String) -> Self {
         Self {
             success: true,
             data: Some(data),
-            message: Some(message),
-            error: None,
         }
     }
 }
@@ -147,7 +143,6 @@ fn get_poc_user_id() -> UserId {
 /// Custom JSON extractor that returns proper JSON error responses
 pub struct JsonRequest<T>(pub T);
 
-#[axum::async_trait]
 impl<T, S> axum::extract::FromRequest<S> for JsonRequest<T>
 where
     T: serde::de::DeserializeOwned,
@@ -161,7 +156,7 @@ where
             Err(rejection) => {
                 let error_message = match rejection {
                     JsonRejection::JsonDataError(err) => {
-                        tracing::error!("Invalid JSON data: {}", err);
+                        log_error!("Invalid JSON data: {}", err);
                         "Invalid JSON data".to_string()
                     }
                     JsonRejection::JsonSyntaxError(_) => {
@@ -176,7 +171,7 @@ where
                     _ => "Invalid JSON request".to_string(),
                 };
                 
-                tracing::warn!("JSON parsing error: {}", error_message);
+                log_warn!("JSON parsing error: {}", error_message);
                 Err((
                     StatusCode::BAD_REQUEST,
                     Json(ErrorResponse::bad_request(error_message))
@@ -190,22 +185,22 @@ where
 fn handle_document_id(provided_id: Option<String>) -> Result<ID16, String> {
     match provided_id {
         Some(id_str) => {
-            tracing::debug!("Validating provided document ID: '{}'", id_str);
+            log_debug!("Validating provided document ID: '{}'", id_str);
             // Validate provided ID
             if id_str.len() != 16 {
-                tracing::error!("Document ID length mismatch: {} (expected 16)", id_str.len());
+                log_error!("Document ID length mismatch: {} (expected 16)", id_str.len());
                 return Err("Document ID must be exactly 16 characters".to_string());
             }
             ID16::from_str(&id_str).map_err(|e| {
-                tracing::error!("ID16::from_str failed for '{}': {}", id_str, e);
+                log_error!("ID16::from_str failed for '{}': {}", id_str, e);
                 format!("Invalid document ID format: {}", e)
             })
         }
         None => {
             // Generate new ID
-            tracing::debug!("Generating new random document ID");
+            log_debug!("Generating new random document ID");
             let new_id = ID16::random();
-            tracing::debug!("Generated document ID: {}", new_id);
+            log_debug!("Generated document ID: {}", new_id);
             Ok(new_id)
         }
     }
@@ -214,53 +209,53 @@ fn handle_document_id(provided_id: Option<String>) -> Result<ID16, String> {
 // Real handlers with storage integration
 
 /// Create a new document - now with real storage integration
-pub async fn create_document<S: crate::storage::StorageImpl>(
-    State(storage): State<Arc<crate::storage::Store<S>>>,
+pub async fn create_document<S: StorageImpl>(
+    State(app_state): State<AppState<S>>,
     JsonRequest(request): JsonRequest<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DocumentInfo>>), (StatusCode, Json<ErrorResponse>)> {
-    tracing::info!("🚀 Starting create_document handler");
-    tracing::debug!("Request data: {:?}", request);
+    log_info!("🚀 Starting create_document handler");
+    log_debug!("Request data: {:?}", request);
     
     // POC: User ID handling is now done internally by Store
-    tracing::info!("📋 Step 1: User isolation handled by storage layer");
+    log_info!("📋 Step 1: User isolation handled by storage layer");
 
     // Handle document ID (validate or generate)
-    tracing::info!("📋 Step 2: Handling document ID");
+    log_info!("📋 Step 2: Handling document ID");
     let doc_id = handle_document_id(request.id.clone())
         .map_err(|e| {
-            tracing::error!("❌ Failed to handle document ID: {}", e);
+            log_error!("❌ Failed to handle document ID: {}", e);
             (StatusCode::BAD_REQUEST, Json(ErrorResponse::bad_request(e)))
         })?;
-    tracing::info!("✅ Document ID handled: {}", doc_id);
+    log_info!("✅ Document ID handled: {}", doc_id);
 
     // Create document data as JSON bytes
-    tracing::info!("📋 Step 3: Creating document data JSON");
+    log_info!("📋 Step 3: Creating document data JSON");
     let doc_data = serde_json::json!({
         "id": doc_id.to_string(),
         "doc_type": request.doc_type.clone(),
         "parent_id": request.parent_id.clone(),
         "properties": request.properties.clone().unwrap_or(json!({})),
     });
-    tracing::debug!("Document data JSON: {}", doc_data);
+    log_debug!("Document data JSON: {}", doc_data);
 
-    tracing::info!("📋 Step 4: Serializing document data to bytes");
+    log_info!("📋 Step 4: Serializing document data to bytes");
     let doc_bytes = serde_json::to_vec(&doc_data)
         .map_err(|e| {
-            tracing::error!("❌ Failed to serialize document data: {}", e);
+            log_error!("❌ Failed to serialize document data: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::bad_request(format!("Failed to serialize document: {}", e))))
         })?;
-    tracing::info!("✅ Document serialized, size: {} bytes", doc_bytes.len());
+    log_info!("✅ Document serialized, size: {} bytes", doc_bytes.len());
 
     // Store document using the storage layer
-    tracing::info!("📋 Step 5: Calling storage.create_document");
+    log_info!("📋 Step 5: Calling storage.create_document");
     let user_id = get_poc_user_id();
-    let result = storage.create_document(user_id, doc_id, doc_bytes);
+    let result = app_state.storage.create_document(user_id, doc_id, doc_bytes);
 
     // Handle storage result
-    tracing::info!("📋 Step 6: Processing storage result");
+    log_info!("📋 Step 6: Processing storage result");
     match result {
         Ok(()) => {
-            tracing::info!("✅ Document storage successful");
+            log_info!("✅ Document storage successful");
             // Success - create response with actual data
             let doc_info = DocumentInfo {
                 id: doc_id.to_string(),
@@ -271,7 +266,7 @@ pub async fn create_document<S: crate::storage::StorageImpl>(
                 updated_at: chrono::Utc::now().to_rfc3339(),
                 version: 1,
             };
-            tracing::info!("🎉 Document created successfully: {}", doc_id);
+            log_info!("🎉 Document created successfully: {}", doc_id);
 
             Ok((
                 StatusCode::CREATED,
@@ -279,7 +274,7 @@ pub async fn create_document<S: crate::storage::StorageImpl>(
             ))
         }
         Err(error_msg) => {
-            tracing::error!("❌ Storage error: {}", error_msg);
+            log_error!("❌ Storage error: {}", error_msg);
             // Storage error
             Err((StatusCode::BAD_REQUEST, Json(ErrorResponse::bad_request(error_msg))))
         }
@@ -287,43 +282,43 @@ pub async fn create_document<S: crate::storage::StorageImpl>(
 }
 
 /// Get a document by ID - fetches from storage
-pub async fn get_document<S: crate::storage::StorageImpl>(
-    State(storage): State<Arc<crate::storage::Store<S>>>,
+pub async fn get_document<S: StorageImpl>(
+    State(app_state): State<AppState<S>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    tracing::info!("🔍 Starting get_document handler for ID: {}", id);
+    log_info!("🔍 Starting get_document handler for ID: {}", id);
     
     // POC: User ID handling is now done internally by Store
-    tracing::info!("📋 Step 1: User isolation handled by storage layer");
+    log_info!("📋 Step 1: User isolation handled by storage layer");
 
     // Parse document ID
-    tracing::info!("📋 Step 2: Parsing document ID");
+    log_info!("📋 Step 2: Parsing document ID");
     let doc_id = match ID16::from_str(&id) {
         Ok(did) => did,
         Err(e) => {
-            tracing::error!("❌ Invalid document ID format '{}': {}", id, e);
+            log_error!("❌ Invalid document ID format '{}': {}", id, e);
             return (StatusCode::BAD_REQUEST, Json(ErrorResponse::bad_request(format!("Invalid document ID format: {}", e)))).into_response();
         }
     };
-    tracing::info!("✅ Document ID parsed: {}", doc_id);
+    log_info!("✅ Document ID parsed: {}", doc_id);
 
     // Get document from storage
-    tracing::info!("📋 Step 3: Fetching document from storage");
+    log_info!("📋 Step 3: Fetching document from storage");
     let user_id = get_poc_user_id();
-    match storage.get_document(user_id, doc_id) {
+    match app_state.storage.get_document(user_id, doc_id) {
         Some(doc_data) => {
-            tracing::info!("✅ Document found, data size: {} bytes", doc_data.len());
+            log_info!("✅ Document found, data size: {} bytes", doc_data.len());
             
             // Parse the document data as JSON
-            tracing::debug!("📄 Parsing document data as JSON");
+            log_debug!("📄 Parsing document data as JSON");
             let doc_json: Value = match serde_json::from_slice(&doc_data) {
                 Ok(json) => json,
                 Err(e) => {
-                    tracing::error!("❌ Failed to parse document JSON: {}", e);
+                    log_error!("❌ Failed to parse document JSON: {}", e);
                     return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                 }
             };
-            tracing::debug!("✅ Document JSON parsed successfully");
+            log_debug!("✅ Document JSON parsed successfully");
 
             // Extract document information
             let doc_info = DocumentInfo {
@@ -354,11 +349,11 @@ pub async fn get_document<S: crate::storage::StorageImpl>(
                     .unwrap_or(1),
             };
             
-            tracing::info!("🎉 Document retrieved successfully: {}", doc_id);
+            log_info!("🎉 Document retrieved successfully: {}", doc_id);
             Json(ApiResponse::success(doc_info)).into_response()
         }
         None => {
-            tracing::warn!("📭 Document not found: doc={}", doc_id);
+            log_warn!("📭 Document not found: doc={}", doc_id);
             StatusCode::NOT_FOUND.into_response()
         }
     }
@@ -366,50 +361,50 @@ pub async fn get_document<S: crate::storage::StorageImpl>(
 
 
 /// Delete a document - removes from storage
-pub async fn delete_document<S: crate::storage::StorageImpl>(
-    State(storage): State<Arc<crate::storage::Store<S>>>,
+pub async fn delete_document<S: StorageImpl>(
+    State(app_state): State<AppState<S>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    tracing::info!("🗑️ Starting delete_document handler for ID: {}", id);
+    log_info!("🗑️ Starting delete_document handler for ID: {}", id);
     
     // POC: User ID handling is now done internally by Store
-    tracing::info!("📋 Step 1: User isolation handled by storage layer");
+    log_info!("📋 Step 1: User isolation handled by storage layer");
 
     // Parse document ID
-    tracing::info!("📋 Step 2: Parsing document ID");
+    log_info!("📋 Step 2: Parsing document ID");
     let doc_id = ID16::from_str(&id)
         .map_err(|e| {
-            tracing::error!("❌ Invalid document ID format '{}': {}", id, e);
+            log_error!("❌ Invalid document ID format '{}': {}", id, e);
             (StatusCode::BAD_REQUEST, Json(ErrorResponse::bad_request(format!("Invalid document ID format: {}", e))))
         })?;
-    tracing::info!("✅ Document ID parsed: {}", doc_id);
+    log_info!("✅ Document ID parsed: {}", doc_id);
 
     // Check if document exists before attempting deletion
-    tracing::info!("📋 Step 3: Checking if document exists");
+    log_info!("📋 Step 3: Checking if document exists");
     let user_id = get_poc_user_id();
-    if !storage.document_exists(user_id, doc_id) {
-        tracing::warn!("📭 Document not found for deletion: doc={}", doc_id);
+    if !app_state.storage.document_exists(user_id, doc_id) {
+        log_warn!("📭 Document not found for deletion: doc={}", doc_id);
         return Err((StatusCode::NOT_FOUND, Json(ErrorResponse::bad_request(format!("Document {} not found", id)))));
     }
-    tracing::info!("✅ Document exists, proceeding with deletion");
+    log_info!("✅ Document exists, proceeding with deletion");
 
     // Remove document from storage
-    tracing::info!("📋 Step 4: Removing document from storage");
-    match storage.remove_document(user_id, doc_id) {
+    log_info!("📋 Step 4: Removing document from storage");
+    match app_state.storage.remove_document(user_id, doc_id) {
         Ok(()) => {
-            tracing::info!("🎉 Document deleted successfully: {}", doc_id);
+            log_info!("🎉 Document deleted successfully: {}", doc_id);
             Ok(StatusCode::NO_CONTENT)
         }
         Err(error_msg) => {
-            tracing::error!("❌ Storage error during deletion: {}", error_msg);
+            log_error!("❌ Storage error during deletion: {}", error_msg);
             Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::bad_request(format!("Failed to delete document: {}", error_msg)))))
         }
     }
 }
 
 /// Apply delta operations to a document - returns mock response
-pub async fn apply_document_deltas<S: crate::storage::StorageImpl>(
-    State(_storage): State<Arc<crate::storage::Store<S>>>,
+pub async fn apply_document_deltas<S: StorageImpl>(
+    State(_app_state): State<AppState<S>>,
     Path(id): Path<String>,
     JsonExtractor(deltas): JsonExtractor<Vec<Value>>,
 ) -> Result<(StatusCode, Json<ApiResponse<Vec<Value>>>), StatusCode> {
@@ -449,6 +444,9 @@ pub async fn get_document_deltas(
     Ok(Json(ApiResponse::success(deltas)))
 }
 
+// WebRCT handlers
+
+
 // System handlers
 
 /// Health check endpoint
@@ -486,7 +484,55 @@ pub async fn root_handler() -> Json<serde_json::Value> {
         "endpoints": {
             "documents": "/api/documents",
             "health": "/health",
-            "info": "/info"
+            "info": "/info",
+            "webrtc": "/webrtc/*"
         }
+    }))
+}
+
+// WebRTC/Network handlers
+
+/// Handle WebRTC connection request
+pub async fn webrtc_connect<S: StorageImpl>(
+    State(app_state): State<AppState<S>>,
+    Json(request): Json<ConnectRequest>,
+) -> Result<Json<ConnectResponse>, StatusCode> {
+    log_info!("WebRTC connect request from: {}", request.connection_id);
+    
+    // Parse the connection ID from string
+    let connection_id = match request.connection_id.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            log_error!("Invalid connection ID format: {}", request.connection_id);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    };
+    
+    // Register the client connection
+    app_state.network.connection_manager.add_connection(connection_id, true);
+    
+    // For POC: immediately mark as connected since we're not doing real WebRTC handshake
+    app_state.network.connection_manager.update_status(&connection_id, ConnectionStatus::Connected);
+    
+    // For this POC, we're not doing real WebRTC, just acknowledging the connection
+    let response = ConnectResponse {
+        server_id: app_state.network.node_id.to_string(),
+        sdp_answer: request.sdp_offer.map(|_| "mock-sdp-answer".to_string()),
+        message: "Connection registered. This is a POC without real WebRTC.".to_string(),
+    };
+    
+    Ok(Json(response))
+}
+
+/// List active connections
+pub async fn webrtc_connections<S: StorageImpl>(
+    State(app_state): State<AppState<S>>,
+) -> Json<serde_json::Value> {
+    let connections = app_state.network.connection_manager.get_active_connections();
+    
+    Json(json!({
+        "node_id": app_state.network.node_id.to_string(),
+        "connections": connections.iter().map(|id| id.to_string()).collect::<Vec<_>>(),
+        "count": connections.len()
     }))
 }
