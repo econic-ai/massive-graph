@@ -40,18 +40,18 @@ pub struct Chunk {
 }
 
 pub struct ChunkRef {
-    document_id: DocId,             // Which document
-    chunk_id: u64,                  // Unique chunk identifier  
-    offset: u32,                    // Offset within chunk
-    length: u32,                    // Length of data
+    document_id: DocId,   // Which document
+    chunk_id: u64,        // Unique chunk identifier  
+    offset: u32,          // Offset within chunk
+    length: u32,          // Length of data
 }
 
 #[repr(u8)]
 pub enum ChunkState {
-    Active = 0,      // Currently receiving writes
-    Sealed = 1,      // No more writes, can persist
-    Persisted = 2,   // Written to disk
-    Archived = 3,    // Moved to cold storage
+    Active = 0,           // Currently receiving writes
+    Sealed = 1,           // No more writes, can persist
+    Persisted = 2,        // Written to disk
+    Archived = 3,         // Moved to cold storage
 }
 
 #[repr(usize)]

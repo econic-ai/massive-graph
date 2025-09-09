@@ -1,0 +1,227 @@
+<svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+    <!-- Title -->
+    <text x="700" y="30" font-size="20" font-weight="bold" text-anchor="middle">SharedArrayBuffer Architecture with Document-Level Workers</text>
+    
+    <!-- SharedArrayBuffer Container -->
+    <rect x="50" y="60" width="1300" height="400" fill="#f0f0f0" stroke="#333" stroke-width="2"/>
+    <text x="700" y="85" font-size="16" font-weight="bold" text-anchor="middle">SharedArrayBuffer (100MB+)</text>
+    
+    <!-- Memory Regions -->
+    <!-- Global Data Region -->
+    <rect x="70" y="100" width="300" height="340" fill="#e8f4f8" stroke="#0066cc" stroke-width="2"/>
+    <text x="220" y="125" font-size="14" font-weight="bold" text-anchor="middle">Global Data Region</text>
+    <text x="220" y="145" font-size="12" text-anchor="middle">(0-20MB)</text>
+    
+    <!-- Document Partitions within Global -->
+    <rect x="80" y="160" width="135" height="80" fill="#b3d9e6" stroke="#0066cc"/>
+    <text x="147" y="180" font-size="11" text-anchor="middle" font-weight="bold">Document Set A</text>
+    <text x="147" y="195" font-size="10" text-anchor="middle">Owned by: Worker 1</text>
+    <text x="147" y="210" font-size="9" text-anchor="middle">• BTree piece table</text>
+    <text x="147" y="225" font-size="9" text-anchor="middle">• Immutable deltas</text>
+    
+    <rect x="225" y="160" width="135" height="80" fill="#99cce0" stroke="#0066cc"/>
+    <text x="292" y="180" font-size="11" text-anchor="middle" font-weight="bold">Document Set B</text>
+    <text x="292" y="195" font-size="10" text-anchor="middle">Owned by: Worker 2</text>
+    <text x="292" y="210" font-size="9" text-anchor="middle">• BTree piece table</text>
+    <text x="292" y="225" font-size="9" text-anchor="middle">• Immutable deltas</text>
+    
+    <rect x="80" y="250" width="135" height="80" fill="#cce7f0" stroke="#0066cc"/>
+    <text x="147" y="270" font-size="11" text-anchor="middle" font-weight="bold">High Priority Docs</text>
+    <text x="147" y="285" font-size="10" text-anchor="middle">Owned by: SharedWorker</text>
+    <text x="147" y="300" font-size="9" text-anchor="middle">• Critical paths</text>
+    <text x="147" y="315" font-size="9" text-anchor="middle">• System docs</text>
+    
+    <rect x="225" y="250" width="135" height="80" fill="#80bfda" stroke="#0066cc"/>
+    <text x="292" y="270" font-size="11" text-anchor="middle" font-weight="bold">Document Set C</text>
+    <text x="292" y="285" font-size="10" text-anchor="middle">Owned by: Worker 3</text>
+    <text x="292" y="300" font-size="9" text-anchor="middle">• BTree piece table</text>
+    <text x="292" y="315" font-size="9" text-anchor="middle">• Immutable deltas</text>
+    
+    <rect x="80" y="340" width="280" height="90" fill="#e6f3f7" stroke="#0066cc"/>
+    <text x="220" y="360" font-size="11" text-anchor="middle" font-weight="bold">Shared Metadata</text>
+    <text x="220" y="375" font-size="10" text-anchor="middle">• Global version counters</text>
+    <text x="220" y="390" font-size="10" text-anchor="middle">• Document assignment table</text>
+    <text x="220" y="405" font-size="10" text-anchor="middle">• Worker heartbeats</text>
+    <text x="220" y="420" font-size="10" text-anchor="middle">• Priority queue</text>
+    
+    <!-- Tab Regions -->
+    <!-- Tab 1 -->
+    <rect x="390" y="100" width="180" height="340" fill="#f0e8ff" stroke="#6633cc" stroke-width="2"/>
+    <text x="480" y="125" font-size="14" font-weight="bold" text-anchor="middle">Tab 1 Region</text>
+    <text x="480" y="145" font-size="12" text-anchor="middle">(20-21MB)</text>
+    
+    <rect x="400" y="160" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="480" y="180" font-size="11" text-anchor="middle" font-weight="bold">Ring Buffer</text>
+    <text x="480" y="195" font-size="10" text-anchor="middle">[writePos, fieldIds...]</text>
+    <text x="480" y="210" font-size="9" text-anchor="middle" fill="#666">Writers: Worker 1, 2, 3</text>
+    <text x="480" y="225" font-size="9" text-anchor="middle" fill="#666">Reader: Tab 1 JS</text>
+    
+    <rect x="400" y="230" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="480" y="250" font-size="11" text-anchor="middle" font-weight="bold">Dirty Bitmap</text>
+    <text x="480" y="265" font-size="10" text-anchor="middle">1M fields = 125KB</text>
+    <text x="480" y="280" font-size="9" text-anchor="middle" fill="#666">Set by: Workers</text>
+    <text x="480" y="295" font-size="9" text-anchor="middle" fill="#666">Clear by: Tab 1 JS</text>
+    
+    <rect x="400" y="300" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="480" y="320" font-size="11" text-anchor="middle" font-weight="bold">Notification Slots</text>
+    <text x="480" y="335" font-size="10" text-anchor="middle">(Optional - if using</text>
+    <text x="480" y="350" font-size="10" text-anchor="middle">waitAsync)</text>
+    
+    <!-- Tab 2 -->
+    <rect x="590" y="100" width="180" height="340" fill="#f0e8ff" stroke="#6633cc" stroke-width="2"/>
+    <text x="680" y="125" font-size="14" font-weight="bold" text-anchor="middle">Tab 2 Region</text>
+    <text x="680" y="145" font-size="12" text-anchor="middle">(21-22MB)</text>
+    
+    <rect x="600" y="160" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="680" y="185" font-size="11" text-anchor="middle" font-weight="bold">Ring Buffer</text>
+    <text x="680" y="210" font-size="9" text-anchor="middle" fill="#666">Writers: Worker 1, 2, 3</text>
+    
+    <rect x="600" y="230" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="680" y="255" font-size="11" text-anchor="middle" font-weight="bold">Dirty Bitmap</text>
+    <text x="680" y="280" font-size="9" text-anchor="middle" fill="#666">Set by: Workers</text>
+    
+    <rect x="600" y="300" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="680" y="330" font-size="11" text-anchor="middle" font-weight="bold">Notification Slots</text>
+    
+    <!-- More tabs indicator -->
+    <text x="810" y="270" font-size="24" text-anchor="middle">...</text>
+    
+    <!-- Tab N -->
+    <rect x="870" y="100" width="180" height="340" fill="#f0e8ff" stroke="#6633cc" stroke-width="2"/>
+    <text x="960" y="125" font-size="14" font-weight="bold" text-anchor="middle">Tab N Region</text>
+    
+    <rect x="880" y="160" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="960" y="185" font-size="11" text-anchor="middle" font-weight="bold">Ring Buffer</text>
+    
+    <rect x="880" y="230" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="960" y="255" font-size="11" text-anchor="middle" font-weight="bold">Dirty Bitmap</text>
+    
+    <rect x="880" y="300" width="160" height="60" fill="#ddd0ff" stroke="#6633cc"/>
+    <text x="960" y="330" font-size="11" text-anchor="middle" font-weight="bold">Notification Slots</text>
+    
+    <!-- Worker Private Regions -->
+    <rect x="1070" y="100" width="260" height="340" fill="#ffe8e8" stroke="#cc3333" stroke-width="2"/>
+    <text x="1200" y="125" font-size="14" font-weight="bold" text-anchor="middle">Worker Private Regions</text>
+    <text x="1200" y="145" font-size="12" text-anchor="middle">(50MB+)</text>
+    
+    <rect x="1080" y="160" width="115" height="80" fill="#ffcccc" stroke="#cc3333"/>
+    <text x="1137" y="180" font-size="11" text-anchor="middle" font-weight="bold">Worker 1</text>
+    <text x="1137" y="195" font-size="10" text-anchor="middle">Delta Processor</text>
+    <text x="1137" y="210" font-size="9" text-anchor="middle">• Scratch space</text>
+    <text x="1137" y="225" font-size="9" text-anchor="middle">• Temp buffers</text>
+    
+    <rect x="1205" y="160" width="115" height="80" fill="#ffcccc" stroke="#cc3333"/>
+    <text x="1262" y="180" font-size="11" text-anchor="middle" font-weight="bold">Worker 2</text>
+    <text x="1262" y="195" font-size="10" text-anchor="middle">WebRTC Worker</text>
+    <text x="1262" y="210" font-size="9" text-anchor="middle">• Network buffers</text>
+    <text x="1262" y="225" font-size="9" text-anchor="middle">• Encode/decode</text>
+    
+    <rect x="1080" y="250" width="115" height="80" fill="#ffcccc" stroke="#cc3333"/>
+    <text x="1137" y="270" font-size="11" text-anchor="middle" font-weight="bold">Worker 3</text>
+    <text x="1137" y="285" font-size="10" text-anchor="middle">Delta Processor</text>
+    <text x="1137" y="300" font-size="9" text-anchor="middle">• Scratch space</text>
+    <text x="1137" y="315" font-size="9" text-anchor="middle">• Temp buffers</text>
+    
+    <rect x="1205" y="250" width="115" height="80" fill="#ffcccc" stroke="#cc3333"/>
+    <text x="1262" y="270" font-size="11" text-anchor="middle" font-weight="bold">Worker N</text>
+    <text x="1262" y="285" font-size="10" text-anchor="middle">Various Types</text>
+    <text x="1262" y="300" font-size="9" text-anchor="middle">• Type-specific</text>
+    <text x="1262" y="315" font-size="9" text-anchor="middle">• buffers</text>
+    
+    <!-- Actors -->
+    <!-- SharedWorker -->
+    <rect x="550" y="500" width="300" height="60" fill="#0066cc" stroke="#003366" stroke-width="2" rx="5"/>
+    <text x="700" y="525" font-size="14" font-weight="bold" text-anchor="middle" fill="white">SharedWorker (Rust WASM)</text>
+    <text x="700" y="545" font-size="12" text-anchor="middle" fill="white">Manages high-priority docs only</text>
+    
+    <!-- Tab BrowserApps -->
+    <rect x="50" y="650" width="150" height="60" fill="#6633cc" stroke="#330066" stroke-width="2" rx="5"/>
+    <text x="125" y="675" font-size="14" font-weight="bold" text-anchor="middle" fill="white">Tab 1</text>
+    <text x="125" y="695" font-size="12" text-anchor="middle" fill="white">BrowserApp</text>
+    
+    <rect x="220" y="650" width="150" height="60" fill="#6633cc" stroke="#330066" stroke-width="2" rx="5"/>
+    <text x="295" y="675" font-size="14" font-weight="bold" text-anchor="middle" fill="white">Tab 2</text>
+    <text x="295" y="695" font-size="12" text-anchor="middle" fill="white">BrowserApp</text>
+    
+    <rect x="390" y="650" width="150" height="60" fill="#6633cc" stroke="#330066" stroke-width="2" rx="5"/>
+    <text x="465" y="675" font-size="14" font-weight="bold" text-anchor="middle" fill="white">Tab N</text>
+    <text x="465" y="695" font-size="12" text-anchor="middle" fill="white">BrowserApp</text>
+    
+    <!-- Document Workers -->
+    <rect x="650" y="580" width="180" height="60" fill="#cc3333" stroke="#660000" stroke-width="2" rx="5"/>
+    <text x="740" y="600" font-size="13" font-weight="bold" text-anchor="middle" fill="white">Worker 1</text>
+    <text x="740" y="615" font-size="11" text-anchor="middle" fill="white">Owns: Document Set A</text>
+    <text x="740" y="630" font-size="11" text-anchor="middle" fill="white">Type: Delta Processor</text>
+    
+    <rect x="850" y="580" width="180" height="60" fill="#cc3333" stroke="#660000" stroke-width="2" rx="5"/>
+    <text x="940" y="600" font-size="13" font-weight="bold" text-anchor="middle" fill="white">Worker 2</text>
+    <text x="940" y="615" font-size="11" text-anchor="middle" fill="white">Owns: Document Set B</text>
+    <text x="940" y="630" font-size="11" text-anchor="middle" fill="white">Type: WebRTC</text>
+    
+    <rect x="1050" y="580" width="180" height="60" fill="#cc3333" stroke="#660000" stroke-width="2" rx="5"/>
+    <text x="1140" y="600" font-size="13" font-weight="bold" text-anchor="middle" fill="white">Worker 3</text>
+    <text x="1140" y="615" font-size="11" text-anchor="middle" fill="white">Owns: Document Set C</text>
+    <text x="1140" y="630" font-size="11" text-anchor="middle" fill="white">Type: Delta Processor</text>
+    
+    <rect x="650" y="650" width="180" height="60" fill="#cc3333" stroke="#660000" stroke-width="2" rx="5"/>
+    <text x="740" y="675" font-size="13" font-weight="bold" text-anchor="middle" fill="white">Worker N</text>
+    <text x="740" y="695" font-size="11" text-anchor="middle" fill="white">Various document sets</text>
+    
+    <!-- Access Arrows -->
+    <!-- SharedWorker to its docs -->
+    <path d="M 650 500 L 147 330" stroke="#0066cc" stroke-width="3" marker-end="url(#blueArrow)"/>
+    <text x="400" y="420" font-size="11" fill="#0066cc">R/W own docs</text>
+    
+    <!-- Worker 1 -->
+    <path d="M 740 580 L 147 240" stroke="#cc3333" stroke-width="3" marker-end="url(#redArrow)"/>
+    <text x="440" y="350" font-size="11" fill="#cc3333">R/W Doc Set A</text>
+    
+    <path d="M 740 580 L 480 220" stroke="#cc3333" stroke-width="2" marker-end="url(#redArrow)" stroke-dasharray="3,3"/>
+    <text x="600" y="400" font-size="11" fill="#cc3333">Write notifications</text>
+    
+    <!-- Worker 2 -->
+    <path d="M 940 580 L 292 240" stroke="#cc3333" stroke-width="3" marker-end="url(#redArrow)"/>
+    <text x="600" y="320" font-size="11" fill="#cc3333">R/W Doc Set B</text>
+    
+    <path d="M 940 580 L 680 220" stroke="#cc3333" stroke-width="2" marker-end="url(#redArrow)" stroke-dasharray="3,3"/>
+    
+    <!-- Worker 3 -->
+    <path d="M 1140 580 L 292 330" stroke="#cc3333" stroke-width="3" marker-end="url(#redArrow)"/>
+    <text x="700" y="480" font-size="11" fill="#cc3333">R/W Doc Set C</text>
+    
+    <path d="M 1140 580 L 960 220" stroke="#cc3333" stroke-width="2" marker-end="url(#redArrow)" stroke-dasharray="3,3"/>
+    
+    <!-- Tab reads -->
+    <path d="M 125 650 L 220 440" stroke="#6633cc" stroke-width="2" marker-end="url(#purpleArrow)" stroke-dasharray="5,5"/>
+    <text x="100" y="540" font-size="11" fill="#6633cc">Read all docs</text>
+    
+    <path d="M 125 650 L 480 360" stroke="#6633cc" stroke-width="2" marker-end="url(#purpleArrow)"/>
+    <text x="250" y="600" font-size="11" fill="#6633cc">Read/Clear own region</text>
+    
+    <!-- Arrow markers -->
+    <defs>
+      <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#0066cc"/>
+      </marker>
+      <marker id="purpleArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#6633cc"/>
+      </marker>
+      <marker id="redArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="#cc3333"/>
+      </marker>
+    </defs>
+    
+    <!-- Legend -->
+    <rect x="50" y="750" width="1300" height="120" fill="#f9f9f9" stroke="#999" stroke-width="1"/>
+    <text x="60" y="770" font-size="14" font-weight="bold">Key Architecture Points:</text>
+    
+    <text x="70" y="795" font-size="12">• Each worker OWNS exclusive document sets - no write conflicts</text>
+    <text x="70" y="815" font-size="12">• Workers write deltas directly to their assigned documents in global region</text>
+    <text x="70" y="835" font-size="12">• Workers notify tabs by writing to tab ring buffers and setting bitmap bits</text>
+    <text x="70" y="855" font-size="12">• SharedWorker only handles high-priority documents, not general delta processing</text>
+    
+    <text x="700" y="795" font-size="12">• Tabs poll their ring buffers at 250Hz (no waitAsync needed)</text>
+    <text x="700" y="815" font-size="12">• Tabs clear their bitmap at 60Hz during RAF</text>
+    <text x="700" y="835" font-size="12">• Document exclusivity prevents race conditions, not central coordination</text>
+    <text x="700" y="855" font-size="12">• Multiple workers can notify same tab (if tab watches multiple doc sets)</text>
+  </svg>
