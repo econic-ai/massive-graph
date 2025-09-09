@@ -1,33 +1,28 @@
-//! # Massive Graph WASM
+//! # Massive Graph Browser WASM
 //!
-//! Minimal WebAssembly bindings for the Massive Graph database (hello world only).
+//! WebAssembly bindings for the Massive Graph database WebRTC POC.
 
 use wasm_bindgen::prelude::*;
-use massive_graph_core as mgcore;
 
-/// Utility function to log to browser console
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
 
-/// Macro for console logging
-macro_rules! console_log {
-    ($($t:tt)*) => (crate::log(&format_args!($($t)*).to_string()))
-}
+// Re-export logging macros for use in worker modules and main lib
+pub(crate) use massive_graph_core::log_info;
 
-// Initialize WASM environment
-#[wasm_bindgen(start)]
-pub fn init() {
-    // Set panic hook for better error messages in console
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
-    
-    // Log hello world message from core library
-    let message = mgcore::system::utils::hello_world();
-    console_log!("WASM initialized: {}", message);
-}
+// // Use log_info in this module to avoid unused import warning
+// use crate::log_info;
+
+// Module declarations
+mod workers;
+mod utils;
+mod webrtc;
+
+// Re-export worker structs for WASM bindings
+pub use workers::{DedicatedWorker, BrowserApp, ServiceWorkerContext};
+
+// Re-export WebRTC manager for WASM bindings
+pub use webrtc::WebRtcWorkerManager;
+
+
 
 /// Get version information
 #[wasm_bindgen]
@@ -35,5 +30,8 @@ pub fn version() -> String {
     format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
 }
 
-// Re-export only what's needed
-pub use massive_graph_core::system;
+// Initialize WASM environment
+#[wasm_bindgen(start)]
+pub fn init() {
+    log_info!("⭕ Massive Graph WASM initialised...");
+}

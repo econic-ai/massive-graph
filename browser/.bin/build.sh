@@ -38,8 +38,16 @@ else
     print_status "Use '$0 --release' for production build"
 fi
 
-# Build from current directory (already in browser)
-# Set target directory to be within browser folder
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BROWSER_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Change to browser directory and build
+# Use advanced WASM features: threading, atomics, shared memory
+cd "$BROWSER_DIR"
+
+# For now, build without threading features until we can properly configure build-std
+print_status "Building WASM without threading features (standard build)"
 if CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope econic $BUILD_MODE; then
     # Remove the auto-generated .gitignore file
     if [ -f "dist/.gitignore" ]; then
@@ -47,7 +55,7 @@ if CARGO_TARGET_DIR=./target wasm-pack build --target web --out-dir dist --scope
         print_status "Removed auto-generated .gitignore"
     fi
     print_success "WASM build complete!"
-    print_status "Output files in: browser/dist/"
+    print_status "Output files in: $BROWSER_DIR/dist/"
 else
     print_error "WASM build failed!"
     exit 1
