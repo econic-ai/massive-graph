@@ -1,0 +1,19 @@
+[target.wasm32-unknown-unknown]
+# Configuration for WASM target - basic build (no threading)
+rustflags = [
+    "--cfg", 'getrandom_backend="wasm_js"',
+    '--error-format=human-annotate-rs'
+    # Threading features are only enabled in the threaded build script
+    # which uses -Z build-std to rebuild the standard library with atomics
+]
+# [build]
+# # Use short format for more concise errors
+# # Options: human (default), json, short
+# rustflags = ["--error-format=short"]
+
+# # Or for even more readable output with hyperlinks
+# # rustflags = ["--error-format=human-annotate-rs"]
+
+[term]
+# Enable colors in cargo output
+color = "always"
