@@ -17,6 +17,9 @@ pub mod system;
 /// Type definitions for all data structures
 pub mod types;
 
+/// Data structures
+pub mod structures;
+
 /// System constants
 pub mod constants;
 
