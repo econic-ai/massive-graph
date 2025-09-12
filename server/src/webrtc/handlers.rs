@@ -22,7 +22,7 @@ pub type ConnectionStore = Arc<Mutex<HashMap<ConnectionId, Arc<Mutex<Str0mConnec
 
 /// Initialize WebRTC connection
 pub async fn connect_handler<S: StorageImpl>(
-    State(state): State<AppState<S>>,
+    State(state): State<Arc<AppState<S>>>,
     Json(request): Json<ConnectionRequest>,
 ) -> Result<Json<ConnectionResponse>, StatusCode> {
     info!("WebRTC connection request from client: {}", request.client_id);
@@ -86,7 +86,7 @@ pub async fn connect_handler<S: StorageImpl>(
 
 /// Exchange ICE candidates
 pub async fn ice_candidate_handler<S: StorageImpl>(
-    State(state): State<AppState<S>>,
+    State(state): State<Arc<AppState<S>>>,
     Json(request): Json<IceCandidateRequest>,
 ) -> Result<Json<IceCandidateResponse>, StatusCode> {
     info!("ICE candidate from connection: {}", request.connection_id);
@@ -124,7 +124,7 @@ pub async fn health_handler() -> impl IntoResponse {
 }
 
 /// Get or create the connection store
-async fn get_connection_store<S: StorageImpl>(_state: &AppState<S>) -> ConnectionStore {
+async fn get_connection_store<S: StorageImpl>(_state: &Arc<AppState<S>>) -> ConnectionStore {
     // For now, we'll use a static store
     // In production, this should be part of AppState
     static STORE: once_cell::sync::OnceCell<ConnectionStore> = once_cell::sync::OnceCell::new();
@@ -135,7 +135,7 @@ async fn get_connection_store<S: StorageImpl>(_state: &AppState<S>) -> Connectio
 }
 
 /// Create WebRTC routes
-pub fn create_webrtc_routes<S: StorageImpl>() -> axum::Router<AppState<S>> {
+pub fn create_webrtc_routes<S: StorageImpl>() -> axum::Router<Arc<AppState<S>>> {
     use axum::routing::{post, get};
     
     axum::Router::new()

@@ -1,9 +1,9 @@
 //! QUIC server implementation
 
 use std::sync::Arc;
-use massive_graph_core::{log_info, log_error};
+use massive_graph_core::core::factory::ConfiguredAppState;
+use massive_graph_core::{log_info};
 use massive_graph_core::core::config::QuicConfig;
-use massive_graph_core::storage::StorageImpl;
 use massive_graph_core::types::storage::ChunkStorage;
 
 use crate::quic::connection_manager::{ConnectionManager, create_quic_server};
@@ -69,8 +69,9 @@ impl QuicService {
 
 /// Entry point for running QUIC service from main.rs
 pub async fn run_quic_service(
-    config: QuicConfig,
+    configured_app_state: ConfiguredAppState,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let config = configured_app_state.quic_config();
     if !config.enabled {
         log_info!("QUIC service disabled in configuration");
         return Ok(());

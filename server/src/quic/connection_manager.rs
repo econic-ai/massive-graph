@@ -11,10 +11,10 @@ use s2n_quic::Server;
 use std::sync::Arc;
 use tokio::time::timeout;
 use massive_graph_core::{log_info, log_error, log_warn};
+use crate::constants::{DELTA_HEADER_SIZE, LANES_PER_CONNECTION};
 
 use crate::quic::types::{
-    DeltaHeaderMeta, ShardId, ConnectionInfo, DELTA_HEADER_SIZE, 
-    LANES_PER_CONNECTION, Timeouts
+    DeltaHeaderMeta, ShardId, ConnectionInfo, Timeouts, doc_hash_u64
 };
 use crate::quic::shard_runtime::ShardRuntime;
 
@@ -49,7 +49,7 @@ impl ConnectionManager {
     pub async fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
         log_info!("QUIC ConnectionManager starting");
         
-        while let Some(mut connection) = self.server.accept().await {
+        while let Some(connection) = self.server.accept().await {
             let conn_info = ConnectionInfo {
                 user_id: massive_graph_core::types::UserId::random(), // TODO: Extract from auth
                 connection_id: connection.id().to_string(),
@@ -156,13 +156,14 @@ async fn handle_lane(
         // Parse header to get doc_id for routing
         let meta = DeltaHeaderMeta::parse(&header_buf)?;
         
-        // Compute shard
-        let shard_id = ShardId::from_doc_id(&meta.doc_id, shard_count);
+        // Compute shard (and keep doc hash to avoid recompute downstream)
+        let doc_hash = doc_hash_u64(&meta.doc_id);
+        let shard_id = ShardId((doc_hash % shard_count as u64) as u16);
         
         // Hand off to shard runtime
         // This is where we transfer ownership of the stream
         let shard = &shards[shard_id.0 as usize];
-        shard.submit_stream(stream, header_buf, conn_info.clone()).await?;
+        shard.submit_stream(stream, header_buf, doc_hash, conn_info.clone()).await?;
         
         // Stream is now owned by shard, break from loop
         break;
@@ -176,17 +177,42 @@ pub async fn create_quic_server(
     config: &massive_graph_core::core::config::QuicConfig,
 ) -> Result<Server, Box<dyn std::error::Error>> {
     use s2n_quic::provider::tls;
+    use std::fs;
     
-    // For POC, use self-signed cert if not provided
+    // Load certificate and key
     let tls_config = if let (Some(cert_path), Some(key_path)) = (&config.cert_path, &config.key_path) {
+        // log_info!("Loading TLS certificate from: {}", cert_path);
+        // log_info!("Loading TLS key from: {}", key_path);
+        
+        // Verify files exist and are readable
+        if !std::path::Path::new(cert_path).exists() {
+            return Err(format!("Certificate file not found: {}", cert_path).into());
+        }
+        if !std::path::Path::new(key_path).exists() {
+            return Err(format!("Key file not found: {}", key_path).into());
+        }
+        
+        // Read the certificate content to verify it's PEM format
+        let cert_content = fs::read_to_string(cert_path)?;
+        if !cert_content.contains("-----BEGIN CERTIFICATE-----") {
+            return Err("Certificate file does not appear to be in PEM format".into());
+        }
+        
+        // Read the key content to verify it's PEM format
+        let key_content = fs::read_to_string(key_path)?;
+        if !key_content.contains("-----BEGIN") {
+            return Err("Key file does not appear to be in PEM format".into());
+        }
+        
+        log_info!("Certificate and key files validated successfully");
+        
+        // Try loading from memory instead of file paths
         tls::default::Server::builder()
-            .with_certificate(cert_path, key_path)?
+            .with_certificate(&cert_content, &key_content)?
             .build()?
     } else {
-        // For POC, use a simple TLS config
-        log_warn!("No TLS cert/key provided, using test certificate");
-        // In production, would generate or require proper cert
-        return Err("TLS certificate required for QUIC server".into());
+        log_warn!("No TLS cert/key provided in config");
+        return Err("TLS certificate and key required for QUIC server. Please set cert_path and key_path in config".into());
     };
     
     let server = Server::builder()

@@ -10,6 +10,10 @@ license = "MIT"
 name = "massive-graph-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "test_quic_client"
+path = "test/test_quic_client.rs"
+
 [dependencies]
 # Core shared library
 massive-graph-core = { path = "../crates/massive-graph-core" }

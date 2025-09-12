@@ -8,7 +8,7 @@ use axum::{
     response::{IntoResponse, Json},
     Json as JsonExtractor,
 };
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -210,7 +210,7 @@ fn handle_document_id(provided_id: Option<String>) -> Result<ID16, String> {
 
 /// Create a new document - now with real storage integration
 pub async fn create_document<S: StorageImpl>(
-    State(app_state): State<AppState<S>>,
+    State(app_state): State<Arc<AppState<S>>>,
     JsonRequest(request): JsonRequest<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<DocumentInfo>>), (StatusCode, Json<ErrorResponse>)> {
     log_info!("🚀 Starting create_document handler");
@@ -283,7 +283,7 @@ pub async fn create_document<S: StorageImpl>(
 
 /// Get a document by ID - fetches from storage
 pub async fn get_document<S: StorageImpl>(
-    State(app_state): State<AppState<S>>,
+    State(app_state): State<Arc<AppState<S>>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     log_info!("🔍 Starting get_document handler for ID: {}", id);
@@ -362,7 +362,7 @@ pub async fn get_document<S: StorageImpl>(
 
 /// Delete a document - removes from storage
 pub async fn delete_document<S: StorageImpl>(
-    State(app_state): State<AppState<S>>,
+    State(app_state): State<Arc<AppState<S>>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     log_info!("🗑️ Starting delete_document handler for ID: {}", id);
@@ -404,7 +404,7 @@ pub async fn delete_document<S: StorageImpl>(
 
 /// Apply delta operations to a document - returns mock response
 pub async fn apply_document_deltas<S: StorageImpl>(
-    State(_app_state): State<AppState<S>>,
+    State(_app_state): State<Arc<AppState<S>>>,
     Path(id): Path<String>,
     JsonExtractor(deltas): JsonExtractor<Vec<Value>>,
 ) -> Result<(StatusCode, Json<ApiResponse<Vec<Value>>>), StatusCode> {

@@ -10,3 +10,13 @@ data_dir = "./data"
 [metrics]
 enable_prometheus = false
 metrics_addr = "0.0.0.0:9090"
+
+[quic]
+enabled = true
+bind_address = "0.0.0.0:4433"
+shard_count = 16
+workers_per_shard = 2
+max_connections = 10000
+queue_size = 100000
+cert_path = "../ssl/local.econic.ai.crt"
+key_path = "../ssl/local.econic.ai.key"

@@ -1,17 +1,8 @@
 //! Core types for QUIC service
 
 use massive_graph_core::types::{DocId, UserId};
-use std::sync::Arc;
 use std::time::Duration;
-
-/// Number of lanes per connection (fixed)
-pub const LANES_PER_CONNECTION: usize = 12;
-
-/// Delta header size (44 bytes)
-pub const DELTA_HEADER_SIZE: usize = 44;
-
-/// Security header size placeholder
-pub const SECURITY_HEADER_SIZE: usize = 32;
+use crate::constants::{LANES_PER_CONNECTION, DELTA_HEADER_SIZE};
 
 /// Lane identifier (0..11)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,9 +26,7 @@ pub struct ShardId(pub u16);
 impl ShardId {
     /// Compute shard from document ID
     pub fn from_doc_id(doc_id: &DocId, shard_count: u16) -> Self {
-        let hash = doc_id.as_bytes().iter().fold(0u64, |acc, &b| {
-            acc.wrapping_mul(31).wrapping_add(b as u64)
-        });
+        let hash = doc_hash_u64(doc_id);
         ShardId((hash % shard_count as u64) as u16)
     }
 }
@@ -77,6 +66,14 @@ impl DeltaHeaderMeta {
             delta_type,
         })
     }
+}
+
+/// Compute a stable 64-bit hash from DocId for routing
+pub fn doc_hash_u64(doc_id: &DocId) -> u64 {
+    doc_id
+        .as_bytes()
+        .iter()
+        .fold(0u64, |acc, &b| acc.wrapping_mul(31).wrapping_add(b as u64))
 }
 
 /// Connection metadata

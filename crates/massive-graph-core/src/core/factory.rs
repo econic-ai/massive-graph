@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use crate::core::app_state::AppState;
-use crate::core::config::{Config, StorageType};
+use crate::core::config::{Config, QuicConfig, StorageType};
 use crate::storage::{SimpleStore, ZeroCopyStore, SimpleStorage, ZeroCopyStorage};
 use crate::comms::network::Network;
 use crate::log_info;
@@ -58,14 +58,14 @@ pub enum ConfiguredAppState {
     /// Configuration using SimpleStorage backend
     Simple {
         /// The application state with SimpleStorage
-        app_state: AppState<SimpleStorage>,
+        app_state: Arc<AppState<SimpleStorage>>,
         /// The storage instance for server initialization
         storage: Arc<SimpleStore>,
     },
     /// Configuration using ZeroCopyStorage backend
     ZeroCopy {
         /// The application state with ZeroCopyStorage
-        app_state: AppState<ZeroCopyStorage>,
+        app_state: Arc<AppState<ZeroCopyStorage>>,
         /// The storage instance for server initialization
         storage: Arc<ZeroCopyStore>,
     },
@@ -81,13 +81,22 @@ impl ConfiguredAppState {
     }
     
     /// Get the configuration
-    pub fn config(&self) -> &Config {
+    pub fn quic_config(&self) -> QuicConfig {
         match self {
-            ConfiguredAppState::Simple { app_state, .. } => &app_state.config,
-            ConfiguredAppState::ZeroCopy { app_state, .. } => &app_state.config,
+            ConfiguredAppState::Simple { app_state, .. } => app_state.config.quic.clone(),
+            ConfiguredAppState::ZeroCopy { app_state, .. } => app_state.config.quic.clone(),
         }
     }
     
+}
+
+impl Clone for ConfiguredAppState {
+    fn clone(&self) -> Self {
+        match self {
+            ConfiguredAppState::Simple { app_state, .. } => ConfiguredAppState::Simple { app_state: app_state.clone(), storage: app_state.storage.clone() },
+            ConfiguredAppState::ZeroCopy { app_state, .. } => ConfiguredAppState::ZeroCopy { app_state: app_state.clone(), storage: app_state.storage.clone() },
+        }
+    }
 }
 
 /// Create AppState with SimpleStorage backend
@@ -142,12 +151,12 @@ pub fn create_app_state(config: Config) -> Result<ConfiguredAppState, AppStateFa
     
     match config.storage.storage_type {
         StorageType::Simple => {
-            let app_state = create_app_state_with_simple(config.clone());
+            let app_state = Arc::new(create_app_state_with_simple(config.clone()));
             let storage = app_state.storage.clone();
             Ok(ConfiguredAppState::Simple { app_state, storage })
         }
         StorageType::ZeroCopy => {
-            let app_state = create_app_state_with_zerocopy(config.clone());
+            let app_state = Arc::new(create_app_state_with_zerocopy(config.clone()));
             let storage = app_state.storage.clone();
             Ok(ConfiguredAppState::ZeroCopy { app_state, storage })
         }

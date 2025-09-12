@@ -5,22 +5,24 @@
 //! - Performs single-copy from stream to storage
 //! - Uses CPU-pinned threads for cache locality
 
+use massive_graph_core::structures::spsc::SpscRing;
 use s2n_quic::stream::ReceiveStream;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Semaphore};
 use tokio::time::timeout;
-use massive_graph_core::{log_info, log_error, log_warn};
+use massive_graph_core::{log_error, log_info, log_warn};
 use massive_graph_core::types::storage::ChunkStorage;
+use crate::constants::{DELTA_HEADER_SIZE, SECURITY_HEADER_SIZE};
 
 use crate::quic::types::{
-    DeltaHeaderMeta, ConnectionInfo, ShardId, DELTA_HEADER_SIZE, 
-    SECURITY_HEADER_SIZE, Timeouts
+    DeltaHeaderMeta, ConnectionInfo, ShardId, Timeouts
 };
 
 /// Task submitted to shard runtime
 struct ShardTask {
     stream: ReceiveStream,
     header_buf: [u8; DELTA_HEADER_SIZE],
+    doc_hash: u64,
     conn_info: ConnectionInfo,
 }
 
@@ -28,10 +30,16 @@ struct ShardTask {
 pub struct ShardRuntime {
     /// Shard ID
     shard_id: ShardId,
-    /// Task submission channel
-    task_tx: mpsc::UnboundedSender<ShardTask>,
+    /// Ingress channel to dispatcher (many producers -> one dispatcher)
+    ingress_tx: mpsc::UnboundedSender<ShardTask>,
     /// Storage reference
     storage: Arc<ChunkStorage>,
+    /// Per-worker SPSC rings
+    rings: Arc<Vec<SpscRing<ShardTask>>>,
+    /// Per-worker semaphores: count of available items
+    items: Arc<Vec<Semaphore>>,
+    /// Per-worker semaphores: count of free spaces
+    spaces: Arc<Vec<Semaphore>>,
 }
 
 impl ShardRuntime {
@@ -41,24 +49,65 @@ impl ShardRuntime {
         storage: Arc<ChunkStorage>,
         worker_count: usize,
     ) -> Self {
-        let (task_tx, task_rx) = mpsc::unbounded_channel();
-        
-        // Spawn worker threads - they will share the receiver
-        let task_rx = Arc::new(tokio::sync::Mutex::new(task_rx));
+        // New: dispatcher + SPSC rings with per-worker semaphores (no spin)
+        let (ingress_tx, mut ingress_rx) = mpsc::unbounded_channel::<ShardTask>();
+
+        let capacity: usize = 1024;
+        let rings = Arc::new((0..worker_count)
+            .map(|_| SpscRing::with_capacity_pow2(capacity))
+            .collect::<Vec<_>>());
+
+        let items = Arc::new((0..worker_count).map(|_| Semaphore::new(0)).collect::<Vec<_>>());
+        let spaces = Arc::new((0..worker_count).map(|_| Semaphore::new(capacity)).collect::<Vec<_>>());
+
+        // Dispatcher: acquire space -> push -> signal item
+        let rings_for_dispatch = rings.clone();
+        let items_for_dispatch = items.clone();
+        let spaces_for_dispatch = spaces.clone();
+        tokio::spawn(async move {
+            while let Some(task) = ingress_rx.recv().await {
+                let w = (task.doc_hash as usize) % worker_count;
+                // wait for a free slot
+                let _permit = spaces_for_dispatch[w].acquire().await.expect("spaces acquire failed");
+                match rings_for_dispatch[w].push(task) {
+                    Ok(()) => {
+                        // one more item available
+                        items_for_dispatch[w].add_permits(1);
+                    }
+                    Err(_t) => {
+                        // unexpected: restore a space to keep accounting correct
+                        spaces_for_dispatch[w].add_permits(1);
+                    }
+                }
+            }
+        });
+
+        // Workers: wait for item -> pop -> signal space
         for worker_id in 0..worker_count {
-            let rx = task_rx.clone();
-            let storage = storage.clone();
-            let shard_id = shard_id;
-            
+            let storage_clone = storage.clone();
+            let rings_clone = rings.clone();
+            let items_clone = items.clone();
+            let spaces_clone = spaces.clone();
+            let shard_id_copy = shard_id;
             tokio::spawn(async move {
-                shard_worker(shard_id, worker_id, rx, storage).await;
+                shard_worker(
+                    shard_id_copy,
+                    worker_id,
+                    rings_clone,
+                    items_clone,
+                    spaces_clone,
+                    storage_clone,
+                ).await;
             });
         }
-        
+
         Self {
             shard_id,
-            task_tx,
+            ingress_tx,
             storage,
+            rings,
+            items,
+            spaces,
         }
     }
     
@@ -67,15 +116,17 @@ impl ShardRuntime {
         &self,
         stream: ReceiveStream,
         header_buf: [u8; DELTA_HEADER_SIZE],
+        doc_hash: u64,
         conn_info: ConnectionInfo,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let task = ShardTask {
             stream,
             header_buf,
+            doc_hash,
             conn_info,
         };
         
-        self.task_tx.send(task)
+        self.ingress_tx.send(task)
             .map_err(|_| "Shard task queue closed")?;
         
         Ok(())
@@ -86,24 +137,25 @@ impl ShardRuntime {
 async fn shard_worker(
     shard_id: ShardId,
     worker_id: usize,
-    task_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<ShardTask>>>,
+    rings: Arc<Vec<SpscRing<ShardTask>>>,
+    items: Arc<Vec<Semaphore>>,
+    spaces: Arc<Vec<Semaphore>>,
     storage: Arc<ChunkStorage>,
 ) {
-    log_info!("Shard {} worker {} started", shard_id.0, worker_id);
+    // log_debug!("Shard {} worker {} started", shard_id.0, worker_id);
     
     loop {
-        let task = {
-            let mut rx = task_rx.lock().await;
-            rx.recv().await
-        };
-        
-        if let Some(task) = task {
+        // wait for an item
+        let _permit = items[worker_id].acquire().await.expect("items acquire failed");
+        if let Some(task) = rings[worker_id].pop() {
+            // free a slot
+            spaces[worker_id].add_permits(1);
             if let Err(e) = process_stream_task(task, &storage).await {
                 log_error!("Shard {} worker {} task error: {}", shard_id.0, worker_id, e);
             }
         } else {
-            // Channel closed, exit
-            break;
+            // keep accounting consistent on anomaly
+            spaces[worker_id].add_permits(1);
         }
     }
     
@@ -112,17 +164,22 @@ async fn shard_worker(
 
 /// Process a single stream task - this is where single-copy happens
 async fn process_stream_task(
-    mut task: ShardTask,
+    task: ShardTask,
     storage: &Arc<ChunkStorage>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let timeouts = Timeouts::default();
     let mut stream = task.stream;
     let mut header_buf = task.header_buf;
+    let initial_doc = DeltaHeaderMeta::parse(&header_buf)?.doc_id;
     
     // Process deltas from this stream
     loop {
         // Parse header to get size
         let meta = DeltaHeaderMeta::parse(&header_buf)?;
+        if meta.doc_id != initial_doc {
+            log_warn!("Stream doc_id mismatch; closing stream");
+            return Ok(());
+        }
         let total_size = SECURITY_HEADER_SIZE + meta.total_size as usize;
         
         // CRITICAL: Reserve space in storage

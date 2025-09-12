@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -21,7 +21,7 @@ use massive_graph_core::{
 };
 
 /// Creates the main application router with all routes and middleware
-fn create_server_impl<S: StorageImpl>(app_state: AppState<S>) -> Router {
+fn create_server_impl<S: StorageImpl>(app_state: Arc<AppState<S>>) -> Router {
     // CORS configuration - permissive for POC
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
