@@ -1,4 +1,6 @@
-use crate::{types::{field::FieldAddress, ParseError}, DeltaId, DocId};
+use std::{cell::OnceCell, sync::atomic::{AtomicU16, Ordering}};
+
+use crate::{types::{field::FieldAddress, ParseError}, DeltaId, DocId, UserId};
 
 /// Delta type definitions for the Massive Graph system - Empty Shell
 
@@ -83,133 +85,261 @@ pub enum DeltaOp {
     Deltas = 64,
 }
 
-/// Raw delta bytes in wire format
+
+/// Incoming delta bytes in wire format
 #[repr(C)]
-pub struct DeltaRaw {
-    /// The raw bytes of the delta
-    pub bytes: [u8]
+pub struct DeltaIncoming<'a> {
+    /// The raw bytes of the unvalidated delta
+    pub bytes: &'a [u8],
+    /// The client-provided header
+    pub client_header: OnceCell<&'a DeltaClientHeader>,
+    /// The delta operation
+    pub delta_payload: OnceCell<&'a DeltaPayload<'a>>,
+}   
+
+/// The client-provided header
+#[repr(C, align(8))]  // Cache-line aligned for performance
+pub struct DeltaClientHeader {
+    /// The content hash for delta short-window identification, deduplication and validation
+    pub content_hash: u64,          // 8 bytes
+    // // The client-provided sequence number for delta deduplication
+    // pub client_sequence: u64,       // 8 bytes
+
+}
+
+/// The delta operation
+#[repr(C)]
+pub struct DeltaPayload<'a> {
+    /// delta size
+    pub payload_len: u32,          // 4 bytes
+    /// The delta operation type
+    pub delta_op: DeltaOp,        // 1 byte
+    /// The field address with parameters
+    pub field_address: FieldAddress, // Variable length        
+    /// The payload data
+    pub payload_value: &'a [u8], // variable length
+}
+
+/// Server generated delta for ordering and validation guarantees
+#[repr(C, align(128))]  // Cache-line aligned for performance
+pub struct DeltaSecureHeader {
+    /// The user id
+    pub user_id: UserId,                // 32 bytes
+    /// The document identifier
+    pub doc_id: DocId,                  // 16 bytes
+    /// The delta identifier
+    pub delta_id: DeltaId,              // 8 bytes
+    /// The previous delta identifier
+    pub previous_delta_id: DeltaId,     // 8 bytes
+    /// DElta sequence number (document bound)
+    pub delta_sequence_number: u64,            // 8 bytes
+    /// When delta was created
+    pub timestamp: u64,                 // 8 bytes
+    /// The delta signature - BLAKE3 MAC
+    pub signature: [u8; 32],            // 32 bytes
+    /// padding
+    pub padding: [u8; 16],              // 16 bytes
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+/// Bitflags for delta validation/state tracking.
+pub struct DeltaFlags(pub u16);
+
+impl DeltaFlags {
+    /// No flags set.
+    pub const EMPTY: DeltaFlags = DeltaFlags(0);
+    /// Delta has been validated.
+    pub const VALID: DeltaFlags = DeltaFlags(0b0000_0001);
+    /// Signature (MAC) verified.
+    pub const SIGNED: DeltaFlags = DeltaFlags(0b0000_0010);
+    /// Delta was deduplicated.
+    pub const DEDUPED: DeltaFlags = DeltaFlags(0b0000_0100);
+    /// Delta was processed.
+    pub const PROCESSED: DeltaFlags = DeltaFlags(0b0000_1000);    
+    /// Delta was processed.
+    pub const RETRIED: DeltaFlags = DeltaFlags(0b0001_0000);
+    /// Delta was processed.
+    pub const FLAG1: DeltaFlags = DeltaFlags(0b0010_0000);    
+    /// Delta was processed.
+    pub const FLAG2: DeltaFlags = DeltaFlags(0b0100_0000);        
+    /// Delta was processed.
+    pub const FLAG3: DeltaFlags = DeltaFlags(0b1000_0000);            
+
+    /// Get raw bits.
+    pub const fn bits(self) -> u16 { self.0 }
+    /// Construct from raw bits.
+    pub const fn from_bits(bits: u16) -> Self { DeltaFlags(bits) }
+    /// Check whether all bits in mask are set.
+    pub const fn contains(self, mask: DeltaFlags) -> bool { (self.bits() & mask.bits()) == mask.bits() }
+}
+
+/// Mutable tracking state for delta flags; uses atomics for optional cross-thread updates.
+pub struct DeltaTracking {
+    /// Mutable tracking flags (thread-safe when shared across threads).
+    flags: AtomicU16,
+}
+impl DeltaTracking {
+    /// Create with no flags set.
+    pub fn new() -> Self { Self { flags: AtomicU16::new(DeltaFlags::EMPTY.bits()) } }
+    /// Read current flags.
+    pub fn get(&self) -> DeltaFlags { DeltaFlags::from_bits(self.flags.load(Ordering::Relaxed)) }
+    /// Overwrite flags.
+    pub fn set(&self, v: DeltaFlags) { self.flags.store(v.bits(), Ordering::Release) }
+    /// Set bits by mask.
+    pub fn set_bits(&self, mask: DeltaFlags) { self.flags.fetch_or(mask.bits(), Ordering::AcqRel); }
+    /// Clear bits by mask.
+    pub fn clear_bits(&self, mask: DeltaFlags) { self.flags.fetch_and(!mask.bits(), Ordering::AcqRel); }
+}
+
+/// DElta Ref
+pub struct Delta<'a> {
+    /// The raw bytes
+    pub bytes: &'a [u8],
 }
 
 /// Delta operation containing document changes
-pub struct Delta {
-    // 32 byte header
-    /// Document identifier (16 bytes)
-    pub doc_id: DocId,
-    /// Delta identifier (8 bytes)
-    pub delta_id: DeltaId,
-    /// Timestamp when delta was created (8 bytes)
-    pub timestamp: u64,
+pub struct DeltaRef<'a> {
 
-    // 6 bytes minimum
-    /// Length of the payload data
-    pub payload_len: u32,
-    /// Type of delta operation (1 byte)
-    pub delta_op: DeltaOp,
-    /// Field address with parameters (1-3 bytes + params)
-    pub field_address: FieldAddress,
-    /// Pointer to payload data and its length
-    pub payload: (*const u8, usize),
+    /// raw bytes
+    bytes: &'a [u8],
+
+    /// The mutable flags
+    state: DeltaTracking,
+
+    /// The secured header
+    server_header: &'a DeltaSecureHeader,
+
+    /// The delta Client header
+    client_header: &'a DeltaClientHeader,
+
+    /// The field address
+    /// The delta payload
+    payload: &'a DeltaPayload<'a>,
+
+}
+
+impl<'a> DeltaRef<'a> {
+    // Read-only accessors for borrowed data
+    /// Get raw bytes.
+    pub fn bytes(&self) -> &'a [u8] { self.bytes }
+
+    /// Get secured header.
+    pub fn server_header(&self) -> &'a DeltaSecureHeader { self.server_header }
+    /// Get client header.
+    pub fn client(&self) -> &'a DeltaClientHeader { self.client_header }
+    /// Get payload view.
+    pub fn payload(&self) -> &'a DeltaPayload<'a> { self.payload }
+
+    // Mutators operate only on state via &self
+    /// Current flags.
+    pub fn flags(&self) -> DeltaFlags { self.state.get() }
+    /// Overwrite flags.
+    pub fn set_flags(&self, f: DeltaFlags) { self.state.set(f) }
+    /// Mark the delta as validated.
+    pub fn mark_as_valid(&self) { self.state.set_bits(DeltaFlags::VALID) }
 }
 
 /// Parse from wire bytes using same varint/TLV encoding as SchemaRegistry
 /// SAFETY: Caller ensures bytes remain valid for Delta's lifetime
-impl Delta {
-    /// Parse delta from wire format bytes
-    pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self, ParseError> {
-        // Single upfront check for minimum required bytes
+// impl Delta<'a> {
+    // /// Parse delta from wire format bytes
+    // pub fn from_wire_bytes(bytes: &'a [u8]) -> Result<Self, ParseError> {
+    //     // Single upfront check for minimum required bytes
 
-        if bytes.len() < 38 {
-            return Err(ParseError::InsufficientData { 
-                expected: 38, 
-                actual: bytes.len() 
-            });
-        }
+    //     if bytes.len() < 38 {
+    //         return Err(ParseError::InsufficientData { 
+    //             expected: 38, 
+    //             actual: bytes.len() 
+    //         });
+    //     }
         
-        // Now we can use unsafe for speed, knowing we have enough bytes
-        unsafe {
-            let ptr = bytes.as_ptr();
+    //     // Now we can use unsafe for speed, knowing we have enough bytes
+    //     unsafe {
+    //         let ptr = bytes.as_ptr();
             
-            // Direct memory casts - no bounds checks needed
-            let doc_id = *(ptr as *const DocId);
-            let delta_id = *(ptr.add(16) as *const DeltaId);
-            let timestamp = *(ptr.add(24) as *const u64);
-            let delta_op = match *ptr.add(32) {
-                0..=64 => std::mem::transmute(*ptr.add(32)),
-                op => return Err(ParseError::InvalidOperation(op)),
-            };
+    //         // Direct memory casts - no bounds checks needed
+    //         let doc_id = *(ptr as *const DocId);
+    //         let delta_id = *(ptr.add(16) as *const DeltaId);
+    //         let timestamp = *(ptr.add(24) as *const u64);
+    //         let delta_op = match *ptr.add(32) {
+    //             0..=64 => std::mem::transmute(*ptr.add(32)),
+    //             op => return Err(ParseError::InvalidOperation(op)),
+    //         };
             
-            // Parse varints (these still need bounds checking)
-            let mut offset = 33;
+    //         // Parse varints (these still need bounds checking)
+    //         let mut offset = 33;
             
-            // Use unchecked slicing for varints since we validate length
-            let (schema_version, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
-            offset += consumed;
+    //         // Use unchecked slicing for varints since we validate length
+    //         let (schema_version, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
+    //         offset += consumed;
             
-            let (field_index, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
-            offset += consumed;
+    //         let (field_index, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
+    //         offset += consumed;
             
-            // Params count
-            if offset >= bytes.len() {
-                return Err(ParseError::InsufficientData { expected: offset + 1, actual: bytes.len() });
-            }
-            let params_count = *ptr.add(offset);
-            offset += 1;
+    //         // Params count
+    //         if offset >= bytes.len() {
+    //             return Err(ParseError::InsufficientData { expected: offset + 1, actual: bytes.len() });
+    //         }
+    //         let params_count = *ptr.add(offset);
+    //         offset += 1;
             
-            // Mark params section
-            let params_start = offset;
-            let params_ptr = ptr.add(offset);
+    //         // Mark params section
+    //         let params_start = offset;
+    //         let params_ptr = ptr.add(offset);
             
-            // Fast skip over TLV params
-            for _ in 0..params_count {
-                if offset >= bytes.len() {
-                    return Err(ParseError::InsufficientData { expected: offset + 1, actual: bytes.len() });
-                }
-                offset += 1; // Skip type byte
+    //         // Fast skip over TLV params
+    //         for _ in 0..params_count {
+    //             if offset >= bytes.len() {
+    //                 return Err(ParseError::InsufficientData { expected: offset + 1, actual: bytes.len() });
+    //             }
+    //             offset += 1; // Skip type byte
                 
-                let (length, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
-                offset += consumed + length as usize;
+    //             let (length, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
+    //             offset += consumed + length as usize;
                 
-                if offset > bytes.len() {
-                    return Err(ParseError::InsufficientData { expected: offset, actual: bytes.len() });
-                }
-            }
+    //             if offset > bytes.len() {
+    //                 return Err(ParseError::InsufficientData { expected: offset, actual: bytes.len() });
+    //             }
+    //         }
             
-            let params_len = offset - params_start;
+    //         let params_len = offset - params_start;
             
-            // Payload length
-            let (payload_len, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
-            offset += consumed;
+    //         // Payload length
+    //         let (payload_len, consumed) = decode_varint_unchecked(ptr.add(offset), bytes.len() - offset)?;
+    //         offset += consumed;
             
-            // Final check for payload
-            if bytes.len() < offset + payload_len as usize {
-                return Err(ParseError::InsufficientData { 
-                    expected: offset + payload_len as usize, 
-                    actual: bytes.len() 
-                });
-            }
+    //         // Final check for payload
+    //         if bytes.len() < offset + payload_len as usize {
+    //             return Err(ParseError::InsufficientData { 
+    //                 expected: offset + payload_len as usize, 
+    //                 actual: bytes.len() 
+    //             });
+    //         }
             
-            let payload_ptr = ptr.add(offset);
+    //         let payload_ptr = ptr.add(offset);
             
-            Ok(Delta {
-                doc_id,
-                delta_id,
-                delta_op,
-                timestamp,
-                field_address: FieldAddress {
-                    schema_version: schema_version as u16,
-                    field_index,
-                    params_raw: (params_ptr, params_len),
-                },
-                payload_len,
-                payload: (payload_ptr, payload_len as usize),
-            })
-        }
-    }
+    //         Ok(Delta {
+    //             doc_id,
+    //             delta_id,
+    //             delta_op,
+    //             timestamp,
+    //             field_address: FieldAddress {
+    //                 schema_version: schema_version as u16,
+    //                 field_index,
+    //                 params_raw: (params_ptr, params_len),
+    //             },
+    //             payload_len,
+    //             payload: (payload_ptr, payload_len as usize),
+    //         })
+    //     }
+    // }
 
-}
+// }
 
 /// Fast varint decoder with minimal checking
 #[inline(always)]
+#[allow(dead_code)]
 unsafe fn decode_varint_unchecked(ptr: *const u8, max_len: usize) -> Result<(u32, usize), ParseError> {
     if max_len == 0 {
         return Err(ParseError::InsufficientData { expected: 1, actual: 0 });

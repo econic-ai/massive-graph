@@ -15,9 +15,11 @@ pub mod parse;
 /// Delta operation types
 pub mod delta;
 /// Schema types
-pub mod schemas;
+pub mod schema;
 /// Stream types
 pub mod stream;
+/// User types
+pub mod user;
 /// Field types
 pub mod field;
 /// Storage types (native only - contains platform-specific code)
@@ -46,6 +48,6 @@ pub use ids::{ID8, ID16, ID32};
 // pub use document::{Document, DocumentType, DocumentIndexes, DocumentState};
 pub use value::{Value, ValueType};
 pub use delta::{Delta, DeltaOp};
-pub use schemas::{ImmutableSchema, CachedSchemaVersion, SchemaRegistry};
+pub use schema::{ImmutableSchema, CachedSchemaVersion, SchemaRegistry};
 pub use field::{FieldDescriptor, FieldAddress, ParamGroup, FieldParams, ArrayParam, ArrayParamType};
 pub use error::ParseError;
