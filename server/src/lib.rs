@@ -17,7 +17,13 @@ pub mod webrtc;
 /// QUIC ingress service
 pub mod quic;
 
+/// Utility functions
+pub mod utils;
+
 // Re-export core functionality
 pub use massive_graph_core::*;
 /// Backwards-compat re-export: expose core storage as `crate::storage`
 pub use massive_graph_core::storage as storage;
+
+// Re-export utility functions
+pub use utils::*;
