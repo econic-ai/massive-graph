@@ -45,7 +45,7 @@ pub mod store;
 /// Re-export main storage types
 pub use mem_advanced::{ZeroCopyStorage, UserDocuments};
 pub use mem_simple::SimpleStorage;
-pub use user_space::{UserDocumentSpace};
+pub use user_space::UserSpace;
 pub use store::{Store, SimpleStore, ZeroCopyStore};
 
 /// Helper trait that combines all requirements for storage implementations

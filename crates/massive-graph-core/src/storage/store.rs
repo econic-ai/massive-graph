@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use std::sync::Arc;
 use crate::storage::StorageImpl;
 use crate::types::{UserId, DocId};
-use crate::storage::user_space::UserDocumentSpace;
+use crate::storage::user_space::UserSpace;
 
 /// Flat Storage - Maps users to their isolated storage instances
 /// 
@@ -15,7 +15,7 @@ use crate::storage::user_space::UserDocumentSpace;
 /// for zero-cost abstraction.
 pub struct Store<S: StorageImpl> {
     /// Lock-free map of user ID to UserDocumentSpace instances
-    user_spaces: DashMap<UserId, Arc<UserDocumentSpace<S>>>,
+    user_spaces: DashMap<UserId, Arc<UserSpace<S>>>,
     /// Function to create new storage instances
     storage_factory: Arc<dyn Fn() -> S + Send + Sync>,
 }
@@ -33,12 +33,12 @@ impl<S: StorageImpl> Store<S> {
     }
     
     /// Get or create an isolate for a specific user
-    fn get_or_create_isolate(&self, user_id: UserId) -> Arc<UserDocumentSpace<S>> {
+    fn get_or_create_user_space(&self, user_id: UserId) -> Arc<UserSpace<S>> {
         self.user_spaces
             .entry(user_id)
             .or_insert_with(|| {
                 let storage = (self.storage_factory)();
-                Arc::new(UserDocumentSpace::new(user_id, storage))
+                Arc::new(UserSpace::new(user_id, storage))
             })
             .clone()
     }
@@ -58,32 +58,32 @@ impl<S: StorageImpl> Store<S> {
     
     /// Get document count for a specific user
     pub fn user_document_count(&self, user_id: UserId) -> usize {
-        self.get_or_create_isolate(user_id).document_count()
+        self.get_or_create_user_space(user_id).document_count()
     }
     
     /// Create a document for a specific user
     pub fn create_document(&self, user_id: UserId, doc_id: DocId, doc_data: Vec<u8>) -> Result<(), String> {
-        self.get_or_create_isolate(user_id).create_document(doc_id, doc_data)
+        self.get_or_create_user_space(user_id).create_document(doc_id, doc_data)
     }
     
     /// Get a document for a specific user
     pub fn get_document(&self, user_id: UserId, doc_id: DocId) -> Option<Vec<u8>> {
-        self.get_or_create_isolate(user_id).get_document(doc_id)
+        self.get_or_create_user_space(user_id).get_document(doc_id)
     }
     
     /// Remove a document for a specific user
     pub fn remove_document(&self, user_id: UserId, doc_id: DocId) -> Result<(), String> {
-        self.get_or_create_isolate(user_id).remove_document(doc_id)
+        self.get_or_create_user_space(user_id).remove_document(doc_id)
     }
     
     /// Check if a document exists for a specific user
     pub fn document_exists(&self, user_id: UserId, doc_id: DocId) -> bool {
-        self.get_or_create_isolate(user_id).document_exists(doc_id)
+        self.get_or_create_user_space(user_id).document_exists(doc_id)
     }
     
     /// Apply a delta to a document for a specific user
     pub fn apply_delta(&self, user_id: UserId, doc_id: DocId, delta: Vec<u8>) -> Result<(), String> {
-        self.get_or_create_isolate(user_id).apply_delta(doc_id, delta)
+        self.get_or_create_user_space(user_id).apply_delta(doc_id, delta)
     }
 
 }

@@ -131,15 +131,3 @@ impl Default for SimpleStorage {
         Self::new()
     }
 }
-
-// impl Clone for SimpleStorage {
-//     fn clone(&self) -> Self {
-//         Self {
-//             documents: self.documents.clone(),
-//             deltas: self.deltas.clone(),
-//             delta_counter: std::sync::atomic::AtomicU64::new(
-//                 self.delta_counter.load(std::sync::atomic::Ordering::Relaxed)
-//             ),
-//         }
-//     }
-// } 

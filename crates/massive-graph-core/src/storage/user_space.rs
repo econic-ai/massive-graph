@@ -1,16 +1,22 @@
-//! User Isolate - Single user storage wrapper
+//! UserSpace - Single user storage, indexes, and streams
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 use dashmap::DashMap;
+use crate::types::document::DocumentView;
 use crate::types::{UserId, DocId};
+use crate::types::user::{UserDocNode, UserDocStream, UserDocumentRef, UserView};
 use crate::DocumentStorage;
 use crate::types::storage::ChunkStorage;
 use crate::types::storage::ChunkRef;
 // use crate::{log_info, log_error};
 // use crate::core::logging::logging::{log_info, log_error};
 use crate::{log_info, log_error};
+// Final index API (to be implemented under core/structures/optimised_index)
+// #[allow(unused_imports)]
+// use crate::structures::optimised_index::{OptimisedIndex, OptimisedIndexStats};
 
 
-// use info; // TODO: Will be used when logging is implemented
+/// use info; // TODO: Will be used when logging is implemented
 
 
 #[allow(dead_code)] // POC: Struct will be used in future implementation
@@ -36,24 +42,29 @@ struct UserStorageSpace {
     quota_bytes: u64,
 }
 
-/// User Isolate - Represents a single user's isolated storage
-/// 
-/// This struct combines a user ID with a storage implementation,
-/// providing a single-user view of the storage system.
-/// 
-/// Generic parameter S allows compile-time selection of storage implementation
-/// for zero-cost abstraction.
-pub struct UserDocumentSpace<S: DocumentStorage> {
+/// UserSpace - per-user storage, document index, and document streams
+/// Holds the user's document lookup index and document append-only stream with cursor.
+pub struct UserSpace<S: DocumentStorage> {
     /// The user ID this isolate represents
     user_id: UserId,
     /// The storage implementation for this user
     storage: S,
+    /// Append-only stream of this user's documents (payload uses 'static empty bytes for now).
+    user_docs_stream: UserDocStream<'static>,
+    /// Runtime view with cursor for batched traversal.
+    user_view: UserView<'static>,
+    // Per-user document lookup index (final API shape; wired once implemented)
+    doc_index: OptimisedIndex<u128, Arc<DocumentView<'static>>>,
 }
 
-impl<S: DocumentStorage> UserDocumentSpace<S> {
-    /// Create a new user isolate for a specific user
+impl<S: DocumentStorage> UserSpace<S> {
+    /// Create a new user space for a specific user
     pub fn new(user_id: UserId, storage: S) -> Self {
-        Self { user_id, storage }
+        // Create a sentinel head node for the user's document stream.
+        let sentinel: *mut UserDocNode<'static> = UserDocNode::boxed(UserDocumentRef { bytes: &[], doc_id: DocId::default() });
+        let user_docs_stream = UserDocStream::new(sentinel);
+        let user_view = UserView::new(user_id, sentinel);
+        Self { user_id, storage, user_docs_stream, user_view }
     }
     
     /// Get the user ID this isolate represents
@@ -74,12 +85,18 @@ impl<S: DocumentStorage> UserDocumentSpace<S> {
             Ok(()) => log_info!("✅ UserDocumentSpace storage successful"),
             Err(e) => log_error!("❌ UserDocumentSpace storage failed: {}", e),
         }
+        if result.is_ok() {
+            // Append the new document to the user's append-only stream (payload has static empty bytes for now).
+            let node = UserDocNode::boxed(UserDocumentRef { bytes: &[], doc_id });
+            self.user_docs_stream.append(node);
+        }
         result
     }
     
     /// Get a document for this user
     pub fn get_document(&self, doc_id: DocId) -> Option<Vec<u8>> {
-        self.storage.get_document(doc_id)
+        // self.storage.get_document(doc_id)
+        self.doc_index.get(&doc_id)
     }
     
     /// Remove a document for this user
@@ -96,11 +113,12 @@ impl<S: DocumentStorage> UserDocumentSpace<S> {
     pub fn apply_delta(&self, doc_id: DocId, delta: Vec<u8>) -> Result<(), String> {
         self.storage.apply_delta(doc_id, delta)
     }
+
+    /// Build next batch of user documents into an existing vector to reuse capacity; advances the internal cursor.
+    pub fn build_next_user_docs_into(&self, max_scan: usize, out: &mut Vec<*mut UserDocNode<'static>>) {
+        self.user_view.build_next_user_docs_into(&self.user_docs_stream, max_scan, out);
+    }
     
 
 }
 
-// Temporarily keep these type aliases for backward compatibility
-// TODO: Remove these once Store is implemented
-// Type alias for UserDocumentSpace with SimpleStorage
-// pub type SimpleUserDocumentSpace = UserDocumentSpace<crate::storage::SimpleStorage>;
