@@ -93,8 +93,8 @@ impl ConfiguredAppState {
 impl Clone for ConfiguredAppState {
     fn clone(&self) -> Self {
         match self {
-            ConfiguredAppState::Simple { app_state, .. } => ConfiguredAppState::Simple { app_state: app_state.clone(), storage: app_state.storage.clone() },
-            ConfiguredAppState::ZeroCopy { app_state, .. } => ConfiguredAppState::ZeroCopy { app_state: app_state.clone(), storage: app_state.storage.clone() },
+            ConfiguredAppState::Simple { app_state, .. } => ConfiguredAppState::Simple { app_state: app_state.clone(), storage: app_state.store.clone() },
+            ConfiguredAppState::ZeroCopy { app_state, .. } => ConfiguredAppState::ZeroCopy { app_state: app_state.clone(), storage: app_state.store.clone() },
         }
     }
 }
@@ -152,12 +152,12 @@ pub fn create_app_state(config: Config) -> Result<ConfiguredAppState, AppStateFa
     match config.storage.storage_type {
         StorageType::Simple => {
             let app_state = Arc::new(create_app_state_with_simple(config.clone()));
-            let storage = app_state.storage.clone();
+            let storage = app_state.store.clone();
             Ok(ConfiguredAppState::Simple { app_state, storage })
         }
         StorageType::ZeroCopy => {
             let app_state = Arc::new(create_app_state_with_zerocopy(config.clone()));
-            let storage = app_state.storage.clone();
+            let storage = app_state.store.clone();
             Ok(ConfiguredAppState::ZeroCopy { app_state, storage })
         }
     }
