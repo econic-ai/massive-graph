@@ -19,6 +19,15 @@ pub const BASE62_CHARS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJ
 /// - Good balance for cache locality and memory usage
 pub const CHUNK_SIZE: usize = 64 * 1024 * 1024;
 
+/// Size of each memory page in bytes (16MB)
+/// 
+/// This page size is optimized for:
+/// - Large enough to amortize allocation overhead
+/// - Small enough to avoid excessive memory waste
+/// - Aligned with typical OS virtual memory page sizes
+/// - Good balance for cache locality and memory usage
+pub const PAGE_SIZE: usize = 16 * 1024 * 1024;
+
 /// Length of ID8 in bytes (8 characters)
 /// 
 /// Used for delta IDs and other identifiers that need less
