@@ -1707,6 +1707,7 @@ dependencies = [
  "bytes",
  "chrono",
  "console_error_panic_hook",
+ "criterion",
  "crossbeam",
  "dashmap",
  "getrandom 0.3.3",
