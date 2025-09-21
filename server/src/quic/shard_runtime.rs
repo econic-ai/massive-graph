@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Semaphore};
 use tokio::time::timeout;
 use massive_graph_core::{log_error, log_info, log_warn};
-use massive_graph_core::types::storage::ChunkStorage;
+use massive_graph_core::types::storage::{ChunkStorage, DeltaStreamChunk};
 use crate::constants::{DELTA_HEADER_SIZE, SECURITY_HEADER_SIZE};
 
 use crate::quic::types::{
@@ -33,7 +33,7 @@ pub struct ShardRuntime {
     /// Ingress channel to dispatcher (many producers -> one dispatcher)
     ingress_tx: mpsc::UnboundedSender<ShardTask>,
     /// Storage reference
-    storage: Arc<ChunkStorage>,
+    storage: Arc<ChunkStorage<DeltaStreamChunk>>,
     /// Per-worker SPSC rings
     rings: Arc<Vec<SpscRing<ShardTask>>>,
     /// Per-worker semaphores: count of available items
@@ -46,7 +46,7 @@ impl ShardRuntime {
     /// Create new shard runtime
     pub fn new(
         shard_id: ShardId,
-        storage: Arc<ChunkStorage>,
+        storage: Arc<ChunkStorage<DeltaStreamChunk>>,
         worker_count: usize,
     ) -> Self {
         // New: dispatcher + SPSC rings with per-worker semaphores (no spin)
@@ -140,7 +140,7 @@ async fn shard_worker(
     rings: Arc<Vec<SpscRing<ShardTask>>>,
     items: Arc<Vec<Semaphore>>,
     spaces: Arc<Vec<Semaphore>>,
-    storage: Arc<ChunkStorage>,
+    storage: Arc<ChunkStorage<DeltaStreamChunk>>,
 ) {
     // log_debug!("Shard {} worker {} started", shard_id.0, worker_id);
     
@@ -165,7 +165,7 @@ async fn shard_worker(
 /// Process a single stream task - this is where single-copy happens
 async fn process_stream_task(
     task: ShardTask,
-    storage: &Arc<ChunkStorage>,
+    storage: &Arc<ChunkStorage<DeltaStreamChunk>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let timeouts = Timeouts::default();
     let mut stream = task.stream;

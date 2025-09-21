@@ -4,7 +4,7 @@ use std::sync::Arc;
 use massive_graph_core::core::factory::ConfiguredAppState;
 use massive_graph_core::{log_info};
 use massive_graph_core::core::config::QuicConfig;
-use massive_graph_core::types::storage::ChunkStorage;
+use massive_graph_core::types::storage::{ChunkStorage, DeltaStreamChunk};
 
 use crate::quic::connection_manager::{ConnectionManager, create_quic_server};
 use crate::quic::shard_runtime::ShardRuntime;
@@ -13,7 +13,7 @@ use crate::quic::types::ShardId;
 /// QUIC ingress service
 pub struct QuicService {
     config: QuicConfig,
-    storage: Arc<ChunkStorage>,
+    storage: Arc<ChunkStorage<DeltaStreamChunk>>,
 }
 
 impl QuicService {
@@ -21,7 +21,7 @@ impl QuicService {
     pub fn new(config: QuicConfig) -> Self {
         // TODO: For POC, create a simple ChunkStorage instance
         // In real implementation, would get from Store<S>
-        let chunk_storage = Arc::new(ChunkStorage::default());
+        let chunk_storage = Arc::new(ChunkStorage::new());
         
         Self {
             config,

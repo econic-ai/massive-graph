@@ -83,7 +83,7 @@ pub async fn start_api_server(configured_app_state: ConfiguredAppState) -> Resul
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             serve_api_server_with_app(http_addr, app).await
         }

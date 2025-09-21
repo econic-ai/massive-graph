@@ -1,6 +1,6 @@
 //! HTTP request handlers for the Massive Graph API - POC implementation
 //!
-//! Document creation now integrated with SimpleStorage
+//! Document creation now integrated with SimpleDocumentStorage
 
 use axum::{
     extract::{Path, State, rejection::JsonRejection},
@@ -249,7 +249,7 @@ pub async fn create_document<S: StorageImpl>(
     // Store document using the storage layer
     log_info!("📋 Step 5: Calling storage.create_document");
     let user_id = get_poc_user_id();
-    let result = app_state.storage.create_document(user_id, doc_id, doc_bytes);
+    let result = app_state.store.create_document(user_id, doc_id, doc_bytes);
 
     // Handle storage result
     log_info!("📋 Step 6: Processing storage result");
@@ -305,7 +305,7 @@ pub async fn get_document<S: StorageImpl>(
     // Get document from storage
     log_info!("📋 Step 3: Fetching document from storage");
     let user_id = get_poc_user_id();
-    match app_state.storage.get_document(user_id, doc_id) {
+    match app_state.store.get_document(user_id, doc_id) {
         Some(doc_data) => {
             log_info!("✅ Document found, data size: {} bytes", doc_data.len());
             
@@ -382,7 +382,7 @@ pub async fn delete_document<S: StorageImpl>(
     // Check if document exists before attempting deletion
     log_info!("📋 Step 3: Checking if document exists");
     let user_id = get_poc_user_id();
-    if !app_state.storage.document_exists(user_id, doc_id) {
+    if !app_state.store.document_exists(user_id, doc_id) {
         log_warn!("📭 Document not found for deletion: doc={}", doc_id);
         return Err((StatusCode::NOT_FOUND, Json(ErrorResponse::bad_request(format!("Document {} not found", id)))));
     }
@@ -390,7 +390,7 @@ pub async fn delete_document<S: StorageImpl>(
 
     // Remove document from storage
     log_info!("📋 Step 4: Removing document from storage");
-    match app_state.storage.remove_document(user_id, doc_id) {
+    match app_state.store.remove_document(user_id, doc_id) {
         Ok(()) => {
             log_info!("🎉 Document deleted successfully: {}", doc_id);
             Ok(StatusCode::NO_CONTENT)
