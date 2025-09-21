@@ -5,12 +5,11 @@
 // use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64};
 // use crate::{types::Delta, UserId};
 
-use std::sync::atomic::{AtomicPtr};
+// use std::sync::atomic::{AtomicPtr};
 
-use crate::{types::{storage::ChunkRef, stream::{DeltaNode, VersionNode, DeltaStream, VersionStream}}, types::ImmutableSchema, UserId};
+use crate::{types::{storage::{ WireFormat }}, UserId};
 
-use super::{DocId, VersionId};
-
+use super::{DocId};
 
 /// Document type identifiers
 #[repr(u8)]
@@ -75,101 +74,199 @@ pub enum DocumentType {
 
 // Document metadata structure
 /// Persistent document header (immutable, stored in chunks)
-#[repr(C)]
-pub struct DocumentHeader {
-    /// 62base encoded 16 byte identifier
-    document_id: DocId,             // 62base encoded 16 byte identifier
-    /// Document type for operation validation
-    doc_type: DocumentType,         // Document type for operation validation
-    /// Reference to immutable header in chunk memory
-    first_delta: *const ChunkRef,   // Reference to immutable header in chunk memory
-    /// User ID of the owner
-    owner_id: UserId,               // User ID of the owner
-    /// Unix timestamp of creation
-    created_at: u64,                // Unix timestamp of creation    
+/// Keeps reference to raw bytes but parses all values upfront
+#[derive(Debug)]
+#[repr(C, align(64))]
+pub struct DocumentHeader<'a> {
+    /// Raw bytes backing this header (zero-copy borrow)
+    raw_bytes: &'a [u8],
+    /// Document identifier
+    doc_id: DocId,              // 16 bytes
+    /// Document type
+    doc_type: DocumentType,     // 1 byte
+    /// Owner user ID
+    owner_id: UserId,           // 16 bytes
+    /// Creation timestamp
+    created_at: u64,            // 8 bytes
+    /// padding
+    padding: [u8; 25],          // 25 bytes
+
 }
 
-/// Immutable version snapshot (created on the side, stored in chunks)
-#[repr(align(64))]  // Cache-line aligned for performance
-/// Immutable document version snapshot (fields are read via accessors to avoid warnings).
-pub struct DocumentVersion<'a> {
-    version_id: VersionId,
-    schema_ptr: *const ImmutableSchema,
-    wire_version: &'a [u8],
-    delta_ref: *const ChunkRef,
-    delta_sequence: u64,
-}
+impl<'a> DocumentHeader<'a> {
 
-impl<'a> DocumentVersion<'a> {
-    /// Version identifier.
-    pub fn id(&self) -> VersionId { self.version_id }
-    /// Schema pointer.
-    pub fn schema(&self) -> *const ImmutableSchema { self.schema_ptr }
-    /// Version bytes.
-    pub fn bytes(&self) -> &'a [u8] { self.wire_version }
-    /// Delta reference.
-    pub fn delta_ref(&self) -> *const ChunkRef { self.delta_ref }
-    /// Delta sequence number.
-    pub fn delta_seq(&self) -> u64 { self.delta_sequence }
-}
-
-/// Queue state - cache-line aligned, only writers touch this
-#[repr(align(64))]
-/// Tracking of stream cursors for a document (ephemeral; persisted separately for recovery).
-pub struct DocumentCursors<'a> {
-    /// Cursor for the delta stream traversal.
-    pub delta_cursor: AtomicPtr<DeltaNode<'a>>,
-    /// Cursor for the version stream traversal.
-    pub version_cursor: AtomicPtr<VersionNode<'a>>,
-}
-
-/// Runtime document
-#[allow(dead_code)] // POC: Fields will be used in future implementation
-pub struct DocumentView<'a> {
-    /// Immutable document header from chunk storage.
-    header: &'a DocumentHeader,
-    /// Heads for per-document streams.
-    delta_head: *mut DeltaNode<'a>,
-    /// Heads for per-document streams.
-    version_head: *mut VersionNode<'a>,
-    /// Cursors for resumable traversal.
-    cursors: DocumentCursors<'a>,
-    /// Current version pointer (optional; may be set by version application pipeline).
-    current_version: AtomicPtr<DocumentVersion<'a>>,
-}
-
-impl<'a> DocumentView<'a> {
-    /// Create a new runtime view into a document's immutable header and stream heads.
-    pub fn new(header: &'a DocumentHeader, delta_head: *mut DeltaNode<'a>, version_head: *mut VersionNode<'a>) -> Self {
+    /// Create a new document header
+    pub fn new(doc_id: DocId, doc_type: DocumentType, owner_id: UserId, created_at: u64) -> Self {
         Self {
-            header,
-            delta_head,
-            version_head,
-            cursors: DocumentCursors { delta_cursor: AtomicPtr::new(delta_head), version_cursor: AtomicPtr::new(version_head) },
-            current_version: AtomicPtr::new(core::ptr::null_mut()),
+            raw_bytes: &[],
+            doc_id,
+            doc_type,
+            owner_id,
+            created_at,
+            padding: [0; 25]
         }
     }
 
-    /// Header accessor.
-    pub fn header(&self) -> &'a DocumentHeader { self.header }
-
-    /// Build next delta batch into an existing vector for capacity reuse; updates cursor.
-    pub fn build_next_delta_batch_into(&self, stream: &DeltaStream<'a>, max_scan: usize, out: &mut Vec<*mut DeltaNode<'a>>) {
-        let start = self.cursors.delta_cursor.load(core::sync::atomic::Ordering::Acquire);
-        let next = stream.build_next_batch_into(start, max_scan, out);
-        self.cursors.delta_cursor.store(next, core::sync::atomic::Ordering::Release);
+    /// Document ID
+    pub fn doc_id(&self) -> &DocId {
+        &self.doc_id
     }
-
-    /// Build next version batch into an existing vector for capacity reuse; updates cursor.
-    pub fn build_next_version_batch_into(&self, stream: &VersionStream<'a>, max_scan: usize, out: &mut Vec<*mut VersionNode<'a>>) {
-        let start = self.cursors.version_cursor.load(core::sync::atomic::Ordering::Acquire);
-        let next = stream.build_next_batch_into(start, max_scan, out);
-        self.cursors.version_cursor.store(next, core::sync::atomic::Ordering::Release);
+    
+    /// Document type
+    pub fn doc_type(&self) -> &DocumentType {
+        &self.doc_type
     }
-
-    /// Get current delta cursor pointer.
-    pub fn delta_cursor(&self) -> *mut DeltaNode<'a> { self.cursors.delta_cursor.load(core::sync::atomic::Ordering::Acquire) }
-    /// Get current version cursor pointer.
-    pub fn version_cursor(&self) -> *mut VersionNode<'a> { self.cursors.version_cursor.load(core::sync::atomic::Ordering::Acquire) }
+    
+    /// Owner ID
+    pub fn owner_id(&self) -> &UserId {
+        &self.owner_id
+    }
+    
+    /// Created at timestamp
+    pub fn created_at(&self) -> u64 {
+        self.created_at
+    }
+    
+    /// Get the raw bytes backing this header
+    pub fn raw_bytes(&self) -> &'a [u8] {
+        self.raw_bytes
+    }
 }
+
+impl Default for DocumentHeader<'_> {
+    fn default() -> Self {
+        let doc_id = DocId::default();
+        let doc_type = DocumentType::Tree;
+        let owner_id = UserId::default();
+        let created_at = 0;
+        let padding = [0; 25];
+
+        DocumentHeader::new(doc_id, doc_type, owner_id, created_at)
+    }
+}
+
+impl<'a> WireFormat<'a> for DocumentHeader<'a> {
+    fn from_bytes(raw_bytes: &'a [u8]) -> Self {
+        // Parse all values from the wire format using direct offsets
+        // Skip wire version at offset 0 (2 bytes)
+        let doc_id = unsafe {
+            let ptr = raw_bytes[2..].as_ptr() as *const DocId;
+            *ptr
+        };
+        
+        let doc_type = unsafe {
+            let byte = *raw_bytes.get(18).unwrap();
+            std::mem::transmute(byte)
+        };
+        
+        let owner_id = unsafe {
+            let ptr = raw_bytes[19..].as_ptr() as *const UserId;
+            *ptr
+        };
+        
+        let created_at = unsafe {
+            let ptr = raw_bytes[35..].as_ptr() as *const u64;
+            *ptr
+        };
+        
+        Self {
+            raw_bytes,
+            doc_id,
+            doc_type,
+            owner_id,
+            created_at,
+            padding: [0; 25],
+        }
+
+    }
+
+    fn to_bytes(&self) -> &[u8] {
+        self.raw_bytes
+    }
+
+}
+
+// /// Immutable version snapshot (created on the side, stored in chunks)
+// #[repr(align(64))]  // Cache-line aligned for performance
+// /// Immutable document version snapshot (fields are read via accessors to avoid warnings).
+// pub struct DocumentVersion<'a> {
+//     wire_version: &'a [u8],
+//     version_id: VersionId,
+//     schema_ptr: *const ImmutableSchema,
+//     delta_ref: *const ChunkRef<DeltaStreamChunk>,
+//     delta_sequence: u64,
+// }
+
+// impl<'a> DocumentVersion<'a> {
+//     /// Version identifier.
+//     pub fn id(&self) -> VersionId { self.version_id }
+//     /// Schema pointer.
+//     pub fn schema(&self) -> *const ImmutableSchema { self.schema_ptr }
+//     /// Version bytes.
+//     pub fn bytes(&self) -> &'a [u8] { self.wire_version }
+//     /// Delta reference.
+//     pub fn delta_ref(&self) -> *const ChunkRef<DeltaStreamChunk> { self.delta_ref }
+//     /// Delta sequence number.
+//     pub fn delta_seq(&self) -> u64 { self.delta_sequence }
+// }
+
+// impl<'a> WireFormat<'a> for DocumentVersion<'a> {
+//     fn from_bytes(bytes: &'a [u8]) -> Self {
+//         // TODO: Implement actual parsing logic
+//         Self {
+//             wire_version: bytes,
+//             version_id: VersionId::random(),
+//             schema_ptr: std::ptr::null(),
+//             delta_ref: std::ptr::null(),
+//             delta_sequence: 0,
+//         }
+//     }
+
+//     fn to_bytes(&self) -> &[u8] {
+//         self.wire_version
+//     }
+// }
+
+
+
+// /// Runtime document
+// #[allow(dead_code)] // POC: Fields will be used in future implementation
+// pub struct DocumentRef {
+//     /// A chunk reference to the original document header
+//     header: ChunkRef<DocumentHeaderChunk>,
+
+//     /// A chunk reference to the current version
+//     current_version: ChunkRef<DocumentVersionChunk>,
+    
+//     /// A chunk reference to the delta stream
+//     delta_stream: ChunkRef<DeltaStreamChunk>,
+    
+//     /// A chunk reference to the version stream
+//     version_stream: ChunkRef<VersionStreamChunk>,
+
+// }
+
+// impl DocumentRef {
+//     /// Create a new runtime view into a document's immutable header and stream heads.
+//     // pub fn new(header: &'a DocumentHeader<'a>, delta_head: *mut DeltaNode<'a>, version_head: *mut VersionNode<'a>) -> Self {
+//     //     Self {
+//     //         header,
+//     //         delta_head,
+//     //         version_head,
+//     //         cursors: DocumentCursors { delta_cursor: AtomicPtr::new(delta_head), version_cursor: AtomicPtr::new(version_head) },
+//     //         current_version: AtomicPtr::new(core::ptr::null_mut()),
+//     //     }
+//     // }
+
+//     /// Header accessor.
+//     // pub fn header(&self) -> &'a DocumentHeader<'a> { self.header }
+
+
+
+
+//     /// Convert this view to bytes for storage/compat shims (temporary stub).
+//     pub fn to_bytes(&self) -> Vec<u8> {
+//         Vec::new()
+//     }
+// }
 

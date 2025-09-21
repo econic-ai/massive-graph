@@ -1,6 +1,6 @@
 use std::{cell::OnceCell, sync::atomic::{AtomicU16, Ordering}};
 
-use crate::{types::{field::FieldAddress, ParseError}, DeltaId, DocId, UserId};
+use crate::{types::{field::FieldAddress, storage::WireFormat, ParseError}, DeltaId, DocId, UserId};
 
 /// Delta type definitions for the Massive Graph system - Empty Shell
 
@@ -95,7 +95,7 @@ pub struct DeltaIncoming<'a> {
     pub client_header: OnceCell<&'a DeltaClientHeader>,
     /// The delta operation
     pub delta_payload: OnceCell<&'a DeltaPayload<'a>>,
-}   
+}
 
 /// The client-provided header
 #[repr(C, align(8))]  // Cache-line aligned for performance
@@ -103,7 +103,8 @@ pub struct DeltaClientHeader {
     /// The content hash for delta short-window identification, deduplication and validation
     pub content_hash: u64,          // 8 bytes
     // // The client-provided sequence number for delta deduplication
-    // pub client_sequence: u64,       // 8 bytes
+    // pub client_sequence: u64,
+    // 8 bytes
 
 }
 
@@ -192,10 +193,21 @@ impl DeltaTracking {
     pub fn clear_bits(&self, mask: DeltaFlags) { self.flags.fetch_and(!mask.bits(), Ordering::AcqRel); }
 }
 
-/// DElta Ref
+/// Delta Ref
 pub struct Delta<'a> {
     /// The raw bytes
     pub bytes: &'a [u8],
+}
+
+impl<'a> WireFormat<'a> for Delta<'a> {
+
+    fn from_bytes(bytes: &'a [u8]) -> Self {
+        Self { bytes }
+    }
+
+    fn to_bytes(&self) -> &[u8] {
+        self.bytes
+    }
 }
 
 /// Delta operation containing document changes

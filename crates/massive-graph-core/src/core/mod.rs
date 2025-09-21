@@ -21,5 +21,4 @@ pub mod logging;
 // Re-export commonly used items
 pub use config::Config;
 pub use app_state::AppState;
-pub use factory::{create_app_state_with_simple, create_app_state_with_zerocopy};
 // pub use logging::{log_info, log_warn, log_error, log_debug, log_trace};

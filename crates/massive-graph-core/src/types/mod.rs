@@ -16,8 +16,6 @@ pub mod parse;
 pub mod delta;
 /// Schema types
 pub mod schema;
-/// Stream types
-pub mod stream;
 /// User types
 pub mod user;
 /// Field types
@@ -42,6 +40,9 @@ pub type UserId = ids::ID32;
 
 /// Connection identifier for WebRTC connections
 pub type ConnectionId = ids::ID16;
+
+/// Chnunk Identifier
+pub type ChunkId = u64;
 
 // Re-export commonly used types for convenience
 pub use ids::{ID8, ID16, ID32};

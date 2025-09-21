@@ -11,7 +11,7 @@ use crate::{log_info, log_warn};
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
-    /// In-memory storage using SimpleStorage
+    /// In-memory storage using SimpleDocumentStorage
     Simple,
     /// In-memory storage using ZeroCopyStorage  
     ZeroCopy,

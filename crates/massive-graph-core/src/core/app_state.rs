@@ -46,9 +46,9 @@ use crate::core::config::Config;
 use crate::storage::{Store, StorageImpl};
 
 /// Central application state holding all services and components
-pub struct AppState<S: StorageImpl>  {
+pub struct AppState  {
     /// Storage system - configured Store instance
-    pub store: Arc<Store<S>>,
+    pub store: Arc<Store>,
     
     /// Application configuration
     pub config: Config,
@@ -81,7 +81,7 @@ pub struct AppState<S: StorageImpl>  {
 
 // Manual Clone implementation for AppState that doesn't require S: Clone
 // Since storage is held in an Arc, we only need to clone the Arc (increment reference count)
-impl<S: StorageImpl> Clone for AppState<S> {
+impl Clone for AppState {
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),      // Only clones Arc, not the storage itself
@@ -128,11 +128,11 @@ pub struct TaskSchedulerStub;
 #[derive(Clone)]
 pub struct EventBusStub;
 
-impl<S: StorageImpl> AppState<S> {
+impl AppState {
     /// Create a new AppState with the given configuration
     /// This is called by the factory after all services are initialized
     pub fn new(
-        store: Arc<Store<S>>,
+        store: Arc<Store>,
         config: Config,
         network: Network,
     ) -> Self {

@@ -1,3 +1,5 @@
+use crate::{types::storage::ChunkRef, VersionId};
+
 
 /// Wire format type identifiers - one-to-one with Value variants
 #[repr(u8)]
@@ -63,12 +65,10 @@ pub enum ValueType {
     // Direct refs (simple)
     /// Document reference
     DocumentRef = 128,
-    /// Document version reference
-    DocumentVersionRef = 129,
     /// Delta reference
-    DeltaRef = 130,
+    DeltaRef = 129,
     /// User reference
-    UserRef = 131,
+    UserRef = 130,
 
     // Structured types (complex)
     /// Tree structure
@@ -178,6 +178,11 @@ impl<'a> Value<'a> {
     }
 }
 
+
+// struct VersionedValue {
+//     version: VersionId,
+//     value_ref: ChunkRef<Value>,
+// }
 
 /// Decode a varint from bytes, returning (value, bytes_read)
 fn decode_varint(bytes: &[u8]) -> (u32, usize) {
