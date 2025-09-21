@@ -4,7 +4,7 @@ This document describes the implemented storage architecture for the Massive Gra
 
 ## Overview
 
-The Massive Graph database supports multiple storage backends (SimpleStorage and ZeroCopyStorage) that can be selected at runtime via configuration. The architecture is designed to have absolutely zero runtime overhead after the initial configuration-based selection, supporting millions of operations per second without vtable lookups or runtime branching.
+The Massive Graph database supports multiple storage backends (SimpleDocumentStorage and ZeroCopyStorage) that can be selected at runtime via configuration. The architecture is designed to have absolutely zero runtime overhead after the initial configuration-based selection, supporting millions of operations per second without vtable lookups or runtime branching.
 
 ## Key Architectural Decisions
 
@@ -53,7 +53,7 @@ pub struct Store<S: DocumentStorage + Clone + Send + Sync + 'static> {
 }
 
 // Type aliases for concrete store types
-pub type SimpleStore = Store<SimpleStorage>;
+pub type SimpleStore = Store<SimpleDocumentStorage>;
 pub type ZeroCopyStore = Store<ZeroCopyStorage>;
 
 // Generic application state
@@ -66,7 +66,7 @@ pub struct AppState<S: StorageImpl> {
 // Factory output enum
 pub enum ConfiguredAppState {
     Simple {
-        app_state: AppState<SimpleStorage>,
+        app_state: AppState<SimpleDocumentStorage>,
         storage: Arc<SimpleStore>,
     },
     ZeroCopy {

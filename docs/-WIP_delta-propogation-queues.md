@@ -1271,7 +1271,7 @@ pub async fn start_server(configured_app_state: ConfiguredAppState) -> Result<()
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             start_server_with_app(http_addr, app).await
         }
@@ -3787,7 +3787,7 @@ pub async fn start_server(configured_app_state: ConfiguredAppState) -> Result<()
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             start_server_with_app(http_addr, app).await
         }
@@ -8491,7 +8491,7 @@ pub async fn start_server(configured_app_state: ConfiguredAppState) -> Result<()
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             start_server_with_app(http_addr, app).await
         }
@@ -9447,7 +9447,7 @@ pub async fn start_server(configured_app_state: ConfiguredAppState) -> Result<()
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             start_server_with_app(http_addr, app).await
         }
@@ -14019,7 +14019,7 @@ pub async fn start_server(configured_app_state: ConfiguredAppState) -> Result<()
     // Match once on storage type to get concrete AppState, then start server
     match configured_app_state {
         ConfiguredAppState::Simple { app_state, .. } => {
-            log_info!("Starting server with SimpleStorage backend");
+            log_info!("Starting server with SimpleDocumentStorage backend");
             let app = create_server_impl(app_state);
             start_server_with_app(http_addr, app).await
         }
@@ -38132,7 +38132,7 @@ use crate::{log_info, log_warn};
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
-    /// In-memory storage using SimpleStorage
+    /// In-memory storage using SimpleDocumentStorage
     Simple,
     /// In-memory storage using ZeroCopyStorage  
     ZeroCopy,
@@ -38265,7 +38265,7 @@ use crate::{log_info, log_warn};
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
-    /// In-memory storage using SimpleStorage
+    /// In-memory storage using SimpleDocumentStorage
     Simple,
     /// In-memory storage using ZeroCopyStorage  
     ZeroCopy,
@@ -38398,7 +38398,7 @@ use crate::{log_info, log_warn};
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
-    /// In-memory storage using SimpleStorage
+    /// In-memory storage using SimpleDocumentStorage
     Simple,
     /// In-memory storage using ZeroCopyStorage  
     ZeroCopy,
@@ -38566,7 +38566,7 @@ use crate::{log_info, log_warn};
 /// Available storage backend types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
-    /// In-memory storage using SimpleStorage
+    /// In-memory storage using SimpleDocumentStorage
     Simple,
     /// In-memory storage using ZeroCopyStorage  
     ZeroCopy,
@@ -39636,7 +39636,7 @@ I need to add methods to access storage and config from ConfiguredAppState:
 use std::sync::Arc;
 use crate::core::app_state::AppState;
 use crate::core::config::{Config, StorageType};
-use crate::storage::{SimpleStore, ZeroCopyStore, SimpleStorage, ZeroCopyStorage};
+use crate::storage::{SimpleStore, ZeroCopyStore, SimpleDocumentStorage, ZeroCopyStorage};
 use crate::comms::network::Network;
 use crate::log_info;
 
@@ -39685,10 +39685,10 @@ impl std::error::Error for AppStateFactoryError {}
 
 /// Enum to hold different AppState configurations
 pub enum ConfiguredAppState {
-    /// Configuration using SimpleStorage backend
+    /// Configuration using SimpleDocumentStorage backend
     Simple {
-        /// The application state with SimpleStorage
-        app_state: AppState<SimpleStorage>,
+        /// The application state with SimpleDocumentStorage
+        app_state: AppState<SimpleDocumentStorage>,
         /// The storage instance for server initialization
         storage: Arc<SimpleStore>,
     },
@@ -39727,12 +39727,12 @@ impl ConfiguredAppState {
     }
 }
 
-/// Create AppState with SimpleStorage backend
-pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
-    log_info!("Creating AppState with SimpleStorage");
+/// Create AppState with SimpleDocumentStorage backend
+pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleDocumentStorage> {
+    log_info!("Creating AppState with SimpleDocumentStorage");
     
     log_info!("Initializing SimpleStore");
-    let store = SimpleStore::new(|| SimpleStorage::new());
+    let store = SimpleStore::new(|| SimpleDocumentStorage::new());
     let storage = Arc::new(store);
     log_info!("SimpleStore initialized successfully");
     
@@ -39746,7 +39746,7 @@ pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
         network,
     );
     
-    log_info!("AppState with SimpleStorage created successfully");
+    log_info!("AppState with SimpleDocumentStorage created successfully");
     app_state
 }
 
@@ -39804,7 +39804,7 @@ Wait, I need to fix a mismatch. The QUIC service expects `Arc<Store<S>>`, but I'
 use std::sync::Arc;
 use crate::core::app_state::AppState;
 use crate::core::config::{Config, StorageType};
-use crate::storage::{SimpleStore, ZeroCopyStore, SimpleStorage, ZeroCopyStorage};
+use crate::storage::{SimpleStore, ZeroCopyStore, SimpleDocumentStorage, ZeroCopyStorage};
 use crate::comms::network::Network;
 use crate::log_info;
 
@@ -39853,10 +39853,10 @@ impl std::error::Error for AppStateFactoryError {}
 
 /// Enum to hold different AppState configurations
 pub enum ConfiguredAppState {
-    /// Configuration using SimpleStorage backend
+    /// Configuration using SimpleDocumentStorage backend
     Simple {
-        /// The application state with SimpleStorage
-        app_state: AppState<SimpleStorage>,
+        /// The application state with SimpleDocumentStorage
+        app_state: AppState<SimpleDocumentStorage>,
         /// The storage instance for server initialization
         storage: Arc<SimpleStore>,
     },
@@ -39903,12 +39903,12 @@ impl ConfiguredAppState {
     }
 }
 
-/// Create AppState with SimpleStorage backend
-pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
-    log_info!("Creating AppState with SimpleStorage");
+/// Create AppState with SimpleDocumentStorage backend
+pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleDocumentStorage> {
+    log_info!("Creating AppState with SimpleDocumentStorage");
     
     log_info!("Initializing SimpleStore");
-    let store = SimpleStore::new(|| SimpleStorage::new());
+    let store = SimpleStore::new(|| SimpleDocumentStorage::new());
     let storage = Arc::new(store);
     log_info!("SimpleStore initialized successfully");
     
@@ -39922,7 +39922,7 @@ pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
         network,
     );
     
-    log_info!("AppState with SimpleStorage created successfully");
+    log_info!("AppState with SimpleDocumentStorage created successfully");
     app_state
 }
 
@@ -40485,7 +40485,7 @@ Now let me remove the unused storage methods from factory:
 use std::sync::Arc;
 use crate::core::app_state::AppState;
 use crate::core::config::{Config, StorageType};
-use crate::storage::{SimpleStore, ZeroCopyStore, SimpleStorage, ZeroCopyStorage};
+use crate::storage::{SimpleStore, ZeroCopyStore, SimpleDocumentStorage, ZeroCopyStorage};
 use crate::comms::network::Network;
 use crate::log_info;
 
@@ -40534,10 +40534,10 @@ impl std::error::Error for AppStateFactoryError {}
 
 /// Enum to hold different AppState configurations
 pub enum ConfiguredAppState {
-    /// Configuration using SimpleStorage backend
+    /// Configuration using SimpleDocumentStorage backend
     Simple {
-        /// The application state with SimpleStorage
-        app_state: AppState<SimpleStorage>,
+        /// The application state with SimpleDocumentStorage
+        app_state: AppState<SimpleDocumentStorage>,
         /// The storage instance for server initialization
         storage: Arc<SimpleStore>,
     },
@@ -40569,12 +40569,12 @@ impl ConfiguredAppState {
     
 }
 
-/// Create AppState with SimpleStorage backend
-pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
-    log_info!("Creating AppState with SimpleStorage");
+/// Create AppState with SimpleDocumentStorage backend
+pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleDocumentStorage> {
+    log_info!("Creating AppState with SimpleDocumentStorage");
     
     log_info!("Initializing SimpleStore");
-    let store = SimpleStore::new(|| SimpleStorage::new());
+    let store = SimpleStore::new(|| SimpleDocumentStorage::new());
     let storage = Arc::new(store);
     log_info!("SimpleStore initialized successfully");
     
@@ -40588,7 +40588,7 @@ pub fn create_app_state_with_simple(config: Config) -> AppState<SimpleStorage> {
         network,
     );
     
-    log_info!("AppState with SimpleStorage created successfully");
+    log_info!("AppState with SimpleDocumentStorage created successfully");
     app_state
 }
 
@@ -49430,17 +49430,17 @@ Here are two concise, production-safe patterns.
 use std::sync::Arc;
 use std::sync::OnceLock;
 use massive_graph_core::core::app_state::AppState;
-use massive_graph_core::storage::SimpleStorage;
+use massive_graph_core::storage::SimpleDocumentStorage;
 
-static APP_STATE: OnceLock<Arc<AppState<SimpleStorage>>> = OnceLock::new();
+static APP_STATE: OnceLock<Arc<AppState<SimpleDocumentStorage>>> = OnceLock::new();
 
 /// Initialize global state once
-pub fn init_app_state(state: Arc<AppState<SimpleStorage>>) {
+pub fn init_app_state(state: Arc<AppState<SimpleDocumentStorage>>) {
     APP_STATE.set(state).expect("app state already set");
 }
 
 /// Get global state (Arc clone cost on call sites)
-pub fn app_state() -> Arc<AppState<SimpleStorage>> {
+pub fn app_state() -> Arc<AppState<SimpleDocumentStorage>> {
     APP_STATE.get().expect("app state not initialized").clone()
 }
 ```
@@ -49463,18 +49463,18 @@ let app = crate::state::app_state(); // Arc<AppState<_>>
 // server/src/state.rs
 use std::sync::OnceLock;
 use massive_graph_core::core::app_state::AppState;
-use massive_graph_core::storage::SimpleStorage;
+use massive_graph_core::storage::SimpleDocumentStorage;
 
-static APP_STATE: OnceLock<&'static AppState<SimpleStorage>> = OnceLock::new();
+static APP_STATE: OnceLock<&'static AppState<SimpleDocumentStorage>> = OnceLock::new();
 
 /// Initialize global state once by leaking it (never freed)
-pub fn init_app_state_leaked(state: AppState<SimpleStorage>) {
-    let leaked: &'static AppState<SimpleStorage> = Box::leak(Box::new(state));
+pub fn init_app_state_leaked(state: AppState<SimpleDocumentStorage>) {
+    let leaked: &'static AppState<SimpleDocumentStorage> = Box::leak(Box::new(state));
     APP_STATE.set(leaked).expect("app state already set");
 }
 
 /// Get global state reference (no Arc ops per call)
-pub fn app_state() -> &'static AppState<SimpleStorage> {
+pub fn app_state() -> &'static AppState<SimpleDocumentStorage> {
     APP_STATE.get().expect("app state not initialized")
 }
 ```
@@ -49497,17 +49497,17 @@ let app = crate::state::app_state(); // &'static AppState<_>
 use std::sync::Arc;
 use std::sync::OnceLock;
 use massive_graph_core::core::app_state::AppState;
-use massive_graph_core::storage::SimpleStorage;
+use massive_graph_core::storage::SimpleDocumentStorage;
 
-static APP_STATE: OnceLock<Arc<AppState<SimpleStorage>>> = OnceLock::new();
+static APP_STATE: OnceLock<Arc<AppState<SimpleDocumentStorage>>> = OnceLock::new();
 
 /// Initialize global state once
-pub fn init_app_state(state: Arc<AppState<SimpleStorage>>) {
+pub fn init_app_state(state: Arc<AppState<SimpleDocumentStorage>>) {
     APP_STATE.set(state).expect("app state already set");
 }
 
 /// Get global state (Arc clone cost on call sites)
-pub fn app_state() -> Arc<AppState<SimpleStorage>> {
+pub fn app_state() -> Arc<AppState<SimpleDocumentStorage>> {
     APP_STATE.get().expect("app state not initialized").clone()
 }
 ```
@@ -49527,18 +49527,18 @@ let app = crate::state::app_state(); // Arc<AppState<_>>
 // server/src/state.rs
 use std::sync::OnceLock;
 use massive_graph_core::core::app_state::AppState;
-use massive_graph_core::storage::SimpleStorage;
+use massive_graph_core::storage::SimpleDocumentStorage;
 
-static APP_STATE: OnceLock<&'static AppState<SimpleStorage>> = OnceLock::new();
+static APP_STATE: OnceLock<&'static AppState<SimpleDocumentStorage>> = OnceLock::new();
 
 /// Initialize global state once by leaking it (never freed)
-pub fn init_app_state_leaked(state: AppState<SimpleStorage>) {
-    let leaked: &'static AppState<SimpleStorage> = Box::leak(Box::new(state));
+pub fn init_app_state_leaked(state: AppState<SimpleDocumentStorage>) {
+    let leaked: &'static AppState<SimpleDocumentStorage> = Box::leak(Box::new(state));
     APP_STATE.set(leaked).expect("app state already set");
 }
 
 /// Get global state reference (no Arc ops per call)
-pub fn app_state() -> &'static AppState<SimpleStorage> {
+pub fn app_state() -> &'static AppState<SimpleDocumentStorage> {
     APP_STATE.get().expect("app state not initialized")
 }
 ```
