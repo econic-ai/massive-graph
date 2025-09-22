@@ -2,7 +2,8 @@
 
 use std::sync::Arc;
 use crate::storage::{ZeroCopyDocumentStorage};
-use crate::structures::optimised_index::OptimisedIndex;
+use crate::structures::optimised_index::{OptimisedIndex, Snapshot, MphIndexer, DeltaOp};
+use crate::structures::segmented_stream::SegmentedStream;
 use crate::types::{UserId, DocId};
 use crate::storage::user_space::UserSpace;
 
@@ -24,9 +25,18 @@ impl Store {
     /// Create a new flat storage with a factory function for storage instances
     pub fn new() -> Self
     {
-        Self {
-            user_spaces: OptimisedIndex::new(),
-        }
+        // Minimal empty snapshot and delta stream to satisfy skeleton wiring
+        struct DummyMph;
+        impl MphIndexer<UserId> for DummyMph { fn eval(&self, _key: &UserId) -> usize { 0 } }
+        let snapshot = Snapshot {
+            version: 0,
+            reserved_keys: Arc::from([]),
+            reserved_vals: Arc::from([] as [Arc<Arc<UserSpace>>; 0]),
+            mph_vals: Arc::from([] as [Arc<Arc<UserSpace>>; 0]),
+            mph_indexer: crate::structures::optimised_index::ArcIndexer(Arc::new(DummyMph)),
+        };
+        let delta_stream = Arc::new(SegmentedStream::<DeltaOp<UserId, Arc<UserSpace>>>::new());
+        Self { user_spaces: OptimisedIndex::new(snapshot, delta_stream) }
     }
     
     /// Get or create an isolate for a specific user
@@ -34,14 +44,16 @@ impl Store {
         self.user_spaces
             .get(&user_id)
             .unwrap_or_else(|| {
-                Arc::new(UserSpace::new(user_id))
+                Arc::new(Arc::new(UserSpace::new(user_id)))
             })
+            .as_ref()
+            .clone()
     }
 
     /// Get or create an isolate for a specific user
     fn get_user_space(&self, user_id: UserId) -> Arc<UserSpace> {
         self.user_spaces
-            .get(&user_id).unwrap()
+            .get(&user_id).unwrap().as_ref().clone()
     }
     
     /// Get the number of active users

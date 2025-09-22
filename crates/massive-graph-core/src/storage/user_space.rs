@@ -5,7 +5,8 @@ use crate::storage::ZeroCopyDocumentStorage;
 use crate::types::{UserId, DocId};
 use crate::DocumentStorage;
 use crate::{log_info};
-use crate::structures::optimised_index::OptimisedIndex;
+use crate::structures::optimised_index::{OptimisedIndex, Snapshot, MphIndexer, DeltaOp};
+use crate::structures::segmented_stream::SegmentedStream;
 
 
 /// UserSpace - per-user storage, document index, and document streams
@@ -16,7 +17,7 @@ pub struct UserSpace {
     user_id: UserId,
     
     /// Document index
-    doc_index: OptimisedIndex<DocId, Arc<ZeroCopyDocumentStorage>>, 
+    doc_index: OptimisedIndex<DocId, ZeroCopyDocumentStorage>, 
 
     /// User subscriptions
     subsriptions: Vec<DocId>,
@@ -60,11 +61,22 @@ impl<'a> UserSpace {
         // let sentinel: *mut UserDocNode<'static> = UserDocNode::boxed(UserDocumentRef { bytes: &[], doc_id: DocId::default() });
         // let user_docs_stream = UserDocStream::new(sentinel);
         // let user_view = UserView::new(user_id, sentinel);
+        // Minimal empty snapshot + delta stream for placeholder wiring
+        struct DummyMph;
+        impl MphIndexer<DocId> for DummyMph { fn eval(&self, _key: &DocId) -> usize { 0 } }
+        let snapshot = Snapshot {
+            version: 0,
+            reserved_keys: Arc::from([]),
+            reserved_vals: Arc::from([]),
+            mph_vals: Arc::from([]),
+            mph_indexer: crate::structures::optimised_index::ArcIndexer(Arc::new(DummyMph)),
+        };
+        let delta_stream = Arc::new(SegmentedStream::<DeltaOp<DocId, ZeroCopyDocumentStorage>>::new());
         Self {
             user_id,
             // user_docs_stream,
             // user_view,
-            doc_index: OptimisedIndex::new(),
+            doc_index: OptimisedIndex::new(snapshot, delta_stream),
             connections: Vec::new(),
             queues: Vec::new(),
             subsriptions: Vec::new(),
