@@ -1,10 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
-export function init(): void;
 /**
  * Get version information
  */
 export function version(): string;
+export function init(): void;
 /**
  * Browser application wrapper for WASM (Main Thread UI Worker)
  */
@@ -161,14 +161,12 @@ export class WebRtcWorkerManager {
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
-  readonly __wbg_webrtcworkermanager_free: (a: number, b: number) => void;
-  readonly webrtcworkermanager_close: (a: number) => any;
-  readonly webrtcworkermanager_connect: (a: number) => any;
-  readonly webrtcworkermanager_is_connected: (a: number) => number;
-  readonly webrtcworkermanager_new: (a: number, b: number) => number;
-  readonly webrtcworkermanager_send_ping: (a: number, b: number, c: number) => any;
-  readonly init: () => void;
-  readonly version: () => [number, number];
+  readonly __wbg_serviceworkercontext_free: (a: number, b: number) => void;
+  readonly serviceworkercontext_handle_message: (a: number, b: any) => [number, number];
+  readonly serviceworkercontext_initialize: (a: number) => void;
+  readonly serviceworkercontext_is_initialized: (a: number) => number;
+  readonly serviceworkercontext_new: () => number;
+  readonly serviceworkercontext_tab_count: (a: number) => number;
   readonly __wbg_dedicatedworker_free: (a: number, b: number) => void;
   readonly dedicatedworker_initialize: (a: number, b: any, c: any, d: any, e: any, f: any) => void;
   readonly dedicatedworker_is_initialized: (a: number) => number;
@@ -193,12 +191,14 @@ export interface InitOutput {
   readonly browserapp_request_field_update: (a: number, b: number, c: any) => [number, number];
   readonly browserapp_spawn_dedicated_worker: (a: number, b: number, c: number) => [number, number, number, number];
   readonly browserapp_unregister_field_watch: (a: number, b: number) => void;
-  readonly __wbg_serviceworkercontext_free: (a: number, b: number) => void;
-  readonly serviceworkercontext_handle_message: (a: number, b: any) => [number, number];
-  readonly serviceworkercontext_initialize: (a: number) => void;
-  readonly serviceworkercontext_is_initialized: (a: number) => number;
-  readonly serviceworkercontext_new: () => number;
-  readonly serviceworkercontext_tab_count: (a: number) => number;
+  readonly init: () => void;
+  readonly version: () => [number, number];
+  readonly __wbg_webrtcworkermanager_free: (a: number, b: number) => void;
+  readonly webrtcworkermanager_close: (a: number) => any;
+  readonly webrtcworkermanager_connect: (a: number) => any;
+  readonly webrtcworkermanager_is_connected: (a: number) => number;
+  readonly webrtcworkermanager_new: (a: number, b: number) => number;
+  readonly webrtcworkermanager_send_ping: (a: number, b: number, c: number) => any;
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
   readonly __wbindgen_export_2: WebAssembly.Table;
@@ -208,7 +208,7 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_7: WebAssembly.Table;
   readonly __externref_table_dealloc: (a: number) => void;
-  readonly closure73_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure29_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h996148edd6c56f98: (a: number, b: number) => void;
   readonly closure147_externref_shim: (a: number, b: number, c: any) => void;
   readonly closure145_externref_shim: (a: number, b: number, c: any) => void;
