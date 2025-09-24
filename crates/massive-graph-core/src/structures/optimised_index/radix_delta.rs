@@ -1,9 +1,11 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicU16, AtomicUsize, Ordering};
 use std::cell::UnsafeCell;
+use std::mem::{MaybeUninit, size_of};
 use std::ptr;
 use crate::structures::optimised_index::arena::Arena;
+use crate::types::ID16;
 
 #[inline]
 fn fp8<K: Hash>(k: &K) -> u8 {
@@ -22,30 +24,50 @@ fn hash_u64<K: Hash>(k: &K) -> u64 {
     h.finish()
 }
 
-const FP_BUSY: u8 = 0xFF; // reserved busy marker
+// Slot state encoded in high 8 bits of meta; fingerprint in low 8 bits
+const STATE_NONE: u8 = 0x00;
+const STATE_BUSY: u8 = 0x01;
+const STATE_PTR: u8 = 0x02;
+const STATE_INLINE: u8 = 0x03;
+const STATE_TOMBSTONE: u8 = 0x04;
+
+#[repr(align(64))]
+struct Slot<K: Clone, V> {
+    key: UnsafeCell<Option<K>>,        // None until published
+    val_ptr: AtomicPtr<V>,             // used when state == PTR
+    inline: UnsafeCell<MaybeUninit<V>>, // used when state == INLINE
+    meta: AtomicU16,                   // [state:8 | fp:8]
+}
+
+impl<K: Clone, V> Slot<K, V> {
+    #[inline]
+    fn load_meta(&self, ord: Ordering) -> u16 { self.meta.load(ord) }
+    #[inline]
+    fn meta_state(meta: u16) -> u8 { (meta >> 8) as u8 }
+    #[inline]
+    fn meta_fp(meta: u16) -> u8 { (meta & 0xFF) as u8 }
+    #[inline]
+    fn pack_meta(state: u8, fp: u8) -> u16 { ((state as u16) << 8) | (fp as u16) }
+}
 
 struct Bucket<K: Clone, V> {
-    // Keys: written only while ctrl == FP_BUSY
-    keys: Vec<UnsafeCell<Option<K>>>,
-    // Values: raw pointers managed by value_arena; null = empty/tombstone
-    vals: Vec<AtomicPtr<V>>,           
-    // Control bytes: 0 empty, FP_BUSY in-progress, else fingerprint (1..=254)
-    ctrl: Vec<AtomicU8>,
+    slots: Vec<Slot<K, V>>,            // Array-of-Structs for locality
     cap: usize,
     len: AtomicUsize,
 }
 
 impl<K: Clone, V: Clone> Bucket<K, V> {
     fn with_capacity(cap: usize) -> Self {
-        let mut keys = Vec::with_capacity(cap);
-        let mut vals = Vec::with_capacity(cap);
-        let mut ctrl = Vec::with_capacity(cap);
+        let mut slots = Vec::with_capacity(cap);
         for _ in 0..cap {
-            keys.push(UnsafeCell::new(None));
-            vals.push(AtomicPtr::new(ptr::null_mut()));
-            ctrl.push(AtomicU8::new(0));
+            slots.push(Slot {
+                key: UnsafeCell::new(None),
+                val_ptr: AtomicPtr::new(ptr::null_mut()),
+                inline: UnsafeCell::new(MaybeUninit::uninit()),
+                meta: AtomicU16::new(Slot::<K, V>::pack_meta(STATE_NONE, 0)),
+            });
         }
-        Self { keys, vals, ctrl, cap, len: AtomicUsize::new(0) }
+        Self { slots, cap, len: AtomicUsize::new(0) }
     }
 }
 
@@ -78,54 +100,79 @@ where
         Self { dir, dir_mask: dir_len - 1, bucket_cap: cap, arena, value_arena }
     }
 
-    pub fn new() -> Self { Self::with_params(12, 32) }
+    pub fn new() -> Self { Self::with_params(16, 32) }
 
     #[inline(always)]
-    fn bucket_index(&self, k: &K) -> usize { (hash_u64(k) as usize) & self.dir_mask }
+    fn dir_bits(&self) -> usize { (self.dir_mask + 1).trailing_zeros() as usize }
 
     #[inline(always)]
-    fn bucket_index_from_hash(&self, h: u64) -> usize { (h as usize) & self.dir_mask }
+    fn bucket_index_from_hash(&self, h: u64) -> usize {
+        let bits = self.dir_bits().min(64);
+        let hi = if bits == 0 { 0 } else { (h >> (64 - bits)) as usize };
+        hi & self.dir_mask
+    }
 
-    /// Upsert in-place using per-slot atomics; avoids cloning the entire bucket.
+    /// Upsert: lock-free linear probing; claim empty slot or update in place.
     pub fn upsert(&self, key: K, val: V) {
         let seed = hash_u64(&key);
         let bidx = self.bucket_index_from_hash(seed);
         let head = self.dir[bidx].load(Ordering::Acquire);
         let b = unsafe { &*head };
         let cap = b.cap;
-        let mut fp = fp8_from_seed(seed);
-        if fp == 0 { fp = 1; }
-        if fp == FP_BUSY { fp = 0xFE; }
+        let mut fp = fp8_from_seed(seed); if fp == 0 { fp = 1; }
         let mut idx = (seed as usize) & (cap - 1);
         let mut dist = 0usize;
         loop {
-            let slot = &b.ctrl[idx];
-            let cur = slot.load(Ordering::Acquire);
-            if cur == 0 {
-                if slot.compare_exchange(0, FP_BUSY, Ordering::AcqRel, Ordering::Relaxed).is_ok() {
-                    unsafe { *b.keys[idx].get() = Some(key.clone()); }
-                    let p = self.value_arena.alloc_new(val);
-                    b.vals[idx].store(p, Ordering::Release);
-                    slot.store(fp, Ordering::Release);
+            let slot = &b.slots[idx];
+            let meta = slot.load_meta(Ordering::Acquire);
+            let state = Slot::<K, V>::meta_state(meta);
+            let sfp = Slot::<K, V>::meta_fp(meta);
+            if state == STATE_NONE || state == STATE_TOMBSTONE {
+                // Claim by moving to BUSY if still in the same observed state
+                if slot
+                    .meta
+                    .compare_exchange(meta, Slot::<K, V>::pack_meta(STATE_BUSY, 0), Ordering::AcqRel, Ordering::Relaxed)
+                    .is_ok()
+                {
+                    unsafe { *slot.key.get() = Some(key.clone()); }
+                    if size_of::<V>() <= 24 {
+                        unsafe { (*slot.inline.get()).write(val); }
+                        slot.meta
+                            .store(Slot::<K, V>::pack_meta(STATE_INLINE, fp), Ordering::Release);
+                    } else {
+                        let p = self.value_arena.alloc_new(val);
+                        slot.val_ptr.store(p, Ordering::Release);
+                        slot.meta
+                            .store(Slot::<K, V>::pack_meta(STATE_PTR, fp), Ordering::Release);
+                    }
                     b.len.fetch_add(1, Ordering::Relaxed);
                     return;
                 } else {
                     continue;
                 }
-            }
-            if cur != FP_BUSY && cur == fp {
-                let kref = unsafe { &*b.keys[idx].get() };
-                if let Some(k) = kref.as_ref() { if k == &key {
-                    let newp = self.value_arena.alloc_new(val);
-                    let old = b.vals[idx].swap(newp, Ordering::AcqRel);
-                    if !old.is_null() { self.value_arena.retire(old); }
-                    return;
-                } }
+            } else if (state == STATE_PTR || state == STATE_INLINE) && sfp == fp {
+                let kref = unsafe { &*slot.key.get() };
+                if let Some(k) = kref.as_ref() {
+                    if k == &key {
+                        if state == STATE_INLINE {
+                            unsafe { (*slot.inline.get()).write(val); }
+                        } else {
+                            let newp = self.value_arena.alloc_new(val);
+                            let old = slot.val_ptr.swap(newp, Ordering::AcqRel);
+                            if !old.is_null() {
+                                self.value_arena.retire(old);
+                            }
+                        }
+                        return;
+                    }
+                }
             }
             idx = (idx + 1) & (cap - 1);
             dist += 1;
-            if dist > cap { return; }
+            if dist > cap { break; }
         }
+        // If we arrive here, table/bucket is effectively full
+        return;
     }
 
     /// Tombstone (delete) by nulling pointer; keep key/ctrl to retain OA continuity.
@@ -135,21 +182,28 @@ where
         let head = self.dir[bidx].load(Ordering::Acquire);
         let b = unsafe { &*head };
         let cap = b.cap;
-        let mut fp = fp8_from_seed(seed);
-        if fp == 0 { fp = 1; }
-        if fp == FP_BUSY { fp = 0xFE; }
+        let mut fp = fp8_from_seed(seed); if fp == 0 { fp = 1; }
         let mut idx = (seed as usize) & (cap - 1);
         let mut dist = 0usize;
         while dist < cap {
-            let slot_fp = b.ctrl[idx].load(Ordering::Acquire);
-            if slot_fp == 0 { return; }
-            if slot_fp != FP_BUSY && slot_fp == fp {
-                let kref = unsafe { &*b.keys[idx].get() };
-                if let Some(k) = kref.as_ref() { if k == key {
-                    let old = b.vals[idx].swap(ptr::null_mut(), Ordering::AcqRel);
-                    if !old.is_null() { self.value_arena.retire(old); }
-                    return;
-                }}
+            let slot = &b.slots[idx];
+            let meta = slot.load_meta(Ordering::Acquire);
+            let state = Slot::<K, V>::meta_state(meta);
+            let sfp = Slot::<K, V>::meta_fp(meta);
+            if state == STATE_NONE { return; }
+            if (state == STATE_PTR || state == STATE_INLINE) && sfp == fp {
+                let kref = unsafe { &*slot.key.get() };
+                if let Some(k) = kref.as_ref() {
+                    if k == key {
+                        if state == STATE_PTR {
+                            let old = slot.val_ptr.swap(ptr::null_mut(), Ordering::AcqRel);
+                            if !old.is_null() { self.value_arena.retire(old); }
+                        }
+                        slot.meta
+                            .store(Slot::<K, V>::pack_meta(STATE_TOMBSTONE, sfp), Ordering::Release);
+                        return;
+                    }
+                }
             }
             idx = (idx + 1) & (cap - 1);
             dist += 1;
@@ -189,22 +243,30 @@ where
         let bptr = self.dir[bidx].load(Ordering::Acquire);
         let b = unsafe { &*bptr };
         let cap = b.cap;
-        let mut fp = fp8_from_seed(seed);
-        if fp == 0 { fp = 1; }
-        if fp == FP_BUSY { fp = 0xFE; }
+        let mut fp = fp8_from_seed(seed); if fp == 0 { fp = 1; }
         let mut idx = (seed as usize) & (cap - 1);
         let mut dist = 0usize;
         while dist < cap {
-            let slot_fp = b.ctrl[idx].load(Ordering::Acquire);
-            if slot_fp == 0 { return DeltaState::Miss; }
-            if slot_fp != FP_BUSY && slot_fp == fp {
-                let kref = unsafe { &*b.keys[idx].get() };
-                if let Some(k) = kref.as_ref() { if k == key {
-                    let vptr = b.vals[idx].load(Ordering::Acquire);
-                    if vptr.is_null() { return DeltaState::Tombstone; }
-                    let vref: &V = unsafe { &*vptr };
-                    return DeltaState::Hit(vref);
-                } }
+            let slot = &b.slots[idx];
+            let meta = slot.load_meta(Ordering::Acquire);
+            let state = Slot::<K, V>::meta_state(meta);
+            let sfp = Slot::<K, V>::meta_fp(meta);
+            if state == STATE_NONE { return DeltaState::Miss; }
+            if (state == STATE_PTR || state == STATE_INLINE) && sfp == fp {
+                let kref = unsafe { &*slot.key.get() };
+                if let Some(k) = kref.as_ref() {
+                    if k == key {
+                        if state == STATE_INLINE {
+                            let vref: &V = unsafe { &*(*slot.inline.get()).as_ptr() };
+                            return DeltaState::Hit(vref);
+                        } else {
+                            let vptr = slot.val_ptr.load(Ordering::Acquire);
+                            if vptr.is_null() { return DeltaState::Tombstone; }
+                            let vref: &V = unsafe { &*vptr };
+                            return DeltaState::Hit(vref);
+                        }
+                    }
+                }
             }
             idx = (idx + 1) & (cap - 1);
             dist += 1;
@@ -218,8 +280,8 @@ where
             let prev = aptr.swap(self.arena.alloc_new(Bucket::with_capacity(self.bucket_cap)), Ordering::AcqRel);
             if !prev.is_null() {
                 let b = unsafe { &*prev };
-                for v in &b.vals {
-                    let p = v.load(Ordering::Acquire);
+                for slot in &b.slots {
+                    let p = slot.val_ptr.load(Ordering::Acquire);
                     if !p.is_null() { self.value_arena.retire(p); }
                 }
             }
@@ -228,6 +290,7 @@ where
     }
 }
 
+// Removed ID16 specialization; unified high-bit directory via bucket_index_from_hash
 #[cfg(test)]
 mod tests {
     use super::*;
