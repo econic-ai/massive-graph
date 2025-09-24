@@ -133,6 +133,43 @@ fn delta_overrides_base_get() {
     assert_eq!(idx.get(&3).as_deref(), Some(&88));
 }
 
+#[test]
+fn large_value_upsert_get_update_delete() {
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct Large128([u8; 128]);
+
+    // Build empty index for Large128 values
+    let reserved_keys: Arc<[u64]> = Arc::from([]);
+    let reserved_vals: Arc<[Arc<Large128>]> = Arc::from([]);
+    let mph_vals: Arc<[Arc<Large128>]> = Arc::from([]);
+    let snap: Snapshot<u64, Large128> = Snapshot {
+        version: 1,
+        reserved_keys,
+        reserved_vals,
+        mph_vals,
+        mph_indexer: super::ArcIndexer(Arc::new(IdMph)),
+    };
+    let idx: OptimisedIndex<u64, Large128> = OptimisedIndex::new(snap, Arc::new(SegStream::new()));
+
+    // Upsert large value (should take pointer path internally)
+    let mut a = [0u8; 128]; a[0] = 1; a[127] = 9;
+    idx.upsert(42, Large128(a));
+    let got = idx.get(&42).unwrap();
+    assert_eq!(got.0[0], 1);
+    assert_eq!(got.0[127], 9);
+
+    // Update the value
+    let mut b = [0u8; 128]; b[0] = 7; b[127] = 3;
+    idx.upsert(42, Large128(b));
+    let got2 = idx.get(&42).unwrap();
+    assert_eq!(got2.0[0], 7);
+    assert_eq!(got2.0[127], 3);
+
+    // Delete
+    idx.remove(&42);
+    assert!(idx.get(&42).is_none());
+}
+
 // ------------------------
 // Stream-applied overlay behavior
 // ------------------------
