@@ -23,6 +23,7 @@ tracing = { workspace = true }
 # Data structures (WASM-compatible from workspace)
 dashmap = { workspace = true }
 arc-swap = { workspace = true }
+crossbeam-epoch = "0.9"
 bytes = { workspace = true }
 bincode = { workspace = true }
 rmp-serde = { workspace = true }
@@ -45,7 +46,9 @@ getrandom = { version = "0.3.3", features = ["wasm_js"] }
 prometheus = "0.14.0"
 
 [features]
-default = []
+# default = ["debug-logging"]  # Debug logging OFF by default (use --features debug-logging to enable)
+default = []  # Debug logging OFF by default (use --features debug-logging to enable)
+debug-logging = []  # Enable verbose debug logging for OptimisedIndex operations
 
 [dev-dependencies]
 criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
@@ -56,10 +59,6 @@ harness = false
 
 [[bench]]
 name = "spsc_bench"
-harness = false
-
-[[bench]]
-name = "optimised_index_bench"
 harness = false
 
 [[bench]]
