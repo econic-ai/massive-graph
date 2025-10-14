@@ -11,7 +11,7 @@ use crate::{DocumentStorage};
 /// 
 /// This is a placeholder implementation that will be built out according to
 /// the Memory Storage Architecture documentation.
-// #[derive(Debug)]
+#[derive(Debug)] 
 pub struct ZeroCopyDocumentStorage {
 
     /// User documents container
