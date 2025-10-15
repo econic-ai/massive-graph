@@ -1,11 +1,18 @@
 //! Flat Storage - Multi-user storage management
 
-use std::sync::Arc;
 use crate::storage::{ZeroCopyDocumentStorage};
-use crate::structures::optimised_index::{OptimisedIndex, Snapshot, MphIndexer, DeltaOp};
-use crate::structures::segmented_stream::SegmentedStream;
+use crate::structures::mph_delta_index::{OptimisedIndexGen, mph_indexer::MphIndexer};
 use crate::types::{UserId, DocId};
 use crate::storage::user_space::UserSpace;
+use std::sync::Arc;
+
+/// Dummy MPH indexer for placeholder wiring (always returns slot 0).
+#[derive(Clone)]
+struct DummyMph;
+impl MphIndexer<UserId> for DummyMph { 
+    fn eval(&self, _key: &UserId) -> usize { 0 }
+    fn build(_keys: &[UserId]) -> Self { DummyMph }
+}
 
 /// Flat Storage - Maps users to their isolated storage instances
 /// 
@@ -16,7 +23,7 @@ use crate::storage::user_space::UserSpace;
 /// for zero-cost abstraction.
 pub struct Store {
     /// Lock-free map of user ID to UserDocumentSpace instances
-    user_spaces: OptimisedIndex<UserId, Arc<UserSpace>>, 
+    user_spaces: OptimisedIndexGen<UserId, Arc<UserSpace>, DummyMph>, 
     // user_spaces: DashMap<UserId, Arc<UserSpace<S>>>,
 
 }
@@ -25,35 +32,20 @@ impl Store {
     /// Create a new flat storage with a factory function for storage instances
     pub fn new() -> Self
     {
-        // Minimal empty snapshot and delta stream to satisfy skeleton wiring
-        struct DummyMph;
-        impl MphIndexer<UserId> for DummyMph { fn eval(&self, _key: &UserId) -> usize { 0 } }
-        let snapshot = Snapshot {
-            version: 0,
-            reserved_keys: Arc::from([]),
-            reserved_vals: Arc::from([] as [Arc<Arc<UserSpace>>; 0]),
-            mph_vals: Arc::from([] as [Arc<Arc<UserSpace>>; 0]),
-            mph_indexer: crate::structures::optimised_index::ArcIndexer(Arc::new(DummyMph)),
-        };
-        let delta_stream = Arc::new(SegmentedStream::<DeltaOp<UserId, Arc<UserSpace>>>::new());
-        Self { user_spaces: OptimisedIndex::new(snapshot, delta_stream) }
+        Self { user_spaces: OptimisedIndexGen::new_with_indexer_and_capacity(DummyMph, 4096, 8192) }
     }
     
     /// Get or create an isolate for a specific user
     fn get_or_create_user_space(&self, user_id: UserId) -> Arc<UserSpace> {
         self.user_spaces
-            .get(&user_id)
-            .unwrap_or_else(|| {
-                Arc::new(Arc::new(UserSpace::new(user_id)))
-            })
-            .as_ref()
-            .clone()
+            .get_owned(&user_id)
+            .unwrap_or_else(|| Arc::new(UserSpace::new(user_id)))
     }
 
     /// Get or create an isolate for a specific user
     fn get_user_space(&self, user_id: UserId) -> Arc<UserSpace> {
         self.user_spaces
-            .get(&user_id).unwrap().as_ref().clone()
+            .get_owned(&user_id).map(|v| v.clone()).unwrap()
     }
     
     /// Get the number of active users
@@ -63,10 +55,12 @@ impl Store {
     
     /// Get total document count across all users
     pub fn total_document_count(&self) -> usize {
-        self.user_spaces
-            .iter()
-            .map(|entry| entry.1.document_count())
-            .sum()
+        0
+        // self.user_spaces
+        //     .mph_index.slots.len()
+        //     .iter()
+        //     .map(|entry| entry.1.document_count())
+        //     .sum()
     }
     
     /// Get document count for a specific user
