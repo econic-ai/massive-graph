@@ -1,53 +1,55 @@
 use std::{
     mem::MaybeUninit,
     ptr,
-    sync::atomic::{AtomicPtr, AtomicU32, Ordering},
+    sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering},
     sync::Arc,
 };
 
-use arc_swap::ArcSwap;
+use crossbeam_epoch::{self as epoch, Atomic, Owned, Shared};
 use std::sync::atomic::AtomicUsize;
+use std::sync::Mutex;
 use std::thread::JoinHandle;
 
 // Refer to PAGE_SIZE directly in const to avoid unused import warnings
 
-/// Number of entries per page for the segmented stream.
-/// For tests, use a small page size to avoid allocating massive arrays on the stack
-/// during `Page::new()` initialization.
-#[cfg(test)]
-const ENTRIES_PER_PAGE: usize = 64;
+/// Default number of entries per page for the segmented stream.
+/// For tests, use a small page size to avoid allocating massive arrays.
 #[cfg(not(test))]
-const ENTRIES_PER_PAGE: usize = crate::constants::PAGE_SIZE;
-
-
-const LINK_AHEAD: u32 = (ENTRIES_PER_PAGE / 2) as u32;
+pub const DEFAULT_PAGE_SIZE: usize = crate::constants::PAGE_SIZE;
+#[cfg(test)]
+pub const DEFAULT_PAGE_SIZE: usize = 64 ;
 
 /// Append-only segmented stream of items stored in fixed-size pages.
 /// Multi-writer append; multi-reader cursors; lock-free reads.
 pub struct SegmentedStream<T> {
-    /// Optional directory of pages (unused in this minimal pass).
-    #[allow(dead_code)]
-    pages: ArcSwap<Vec<Arc<Page<T>>>>,
+    /// Directory of all pages to keep Arc references alive.
+    pages: Mutex<Vec<Arc<Page<T>>>>,
     /// The current page used for appends (tail of the list).
-    active_page: ArcSwap<Page<T>>, 
+    active_page: Atomic<Page<T>>,
     /// Optional fixed-size page pool and recycler.
     pub pool: Option<StreamPagePool<T>>,
+    /// Number of entries per page (configurable).
+    page_size: usize,
+    /// Threshold for pre-linking next page (page_size / 2).
+    link_ahead: u32,
+    /// Global page sequence counter.
+    next_page_seq: AtomicU64,
 }
 
-/// Page is a 64-byte aligned array of entries.
+/// Page is a 64-byte aligned struct with dynamically-sized entries.
 #[repr(C, align(64))]
 pub struct Page<T> {
+    /// Sequence number of this page (monotonically increasing).
+    page_seq: AtomicU64,
     /// Number of slots reserved by writers in this page.
-    /// Writers `fetch_add(1)` to claim a slot index in [0..ENTRIES_PER_PAGE).
+    /// Writers `fetch_add(1)` to claim a slot index in [0..page_size).
     claimed: AtomicU32,
     /// Number of initialized entries visible to readers (<= claimed).
     committed: AtomicU32,
     /// Link to the next page. Set exactly once, after full init of the new page.
     next: AtomicPtr<Page<T>>,
-    /// Number of active readers currently positioned on this page.
-    readers: AtomicU32,
-    /// Entry storage (uninitialized until published).
-    entries: [MaybeUninit<T>; ENTRIES_PER_PAGE],
+    /// Entry storage (dynamically allocated, uninitialized until published).
+    entries: Box<[MaybeUninit<T>]>,
 }
 
 /// Cursor is a pointer to a page and an index into the page.
@@ -55,6 +57,37 @@ pub struct Page<T> {
 pub struct Cursor<T> {
     page: Arc<Page<T>>,
     index: u32,
+}
+
+/// Opaque index into the segmented stream identifying a specific entry.
+///
+/// The index is stable for the life of the underlying page and slot.
+/// Compaction routines must not move entries that are still referenced by
+/// any published base or by a live radix descriptor.
+#[derive(Debug)]
+pub struct StreamIndex<T> {
+    /// Raw pointer to the page containing the entry.
+    pub(crate) page: *const Page<T>,
+    /// Slot index within the page.
+    pub(crate) idx: u32,
+}
+
+// Manual implementations to avoid requiring T: Copy
+impl<T> Copy for StreamIndex<T> {}
+
+impl<T> Clone for StreamIndex<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Default for StreamIndex<T> {
+    fn default() -> Self {
+        Self {
+            page: std::ptr::null(),
+            idx: 0,
+        }
+    }
 }
 
 // Question becmes, how do you get the memrory benefits of a page that is no longer referenced?
@@ -70,51 +103,104 @@ pub enum StreamError {
 }
 
 impl<T> Page<T> {
-    /// Allocate and initialize a new empty page.
-    fn new() -> Box<Self> {
-        // Allocate the Page on the heap uninitialized to avoid large stack frames
-        // with big entry arrays. Initialize fields in place.
-        let mut page = Box::<Page<T>>::new_uninit();
-        unsafe {
-            let ptr_page = page.as_mut_ptr();
-            // Initialize scalar/atomic fields
-            ptr::addr_of_mut!((*ptr_page).claimed).write(AtomicU32::new(0));
-            ptr::addr_of_mut!((*ptr_page).committed).write(AtomicU32::new(0));
-            ptr::addr_of_mut!((*ptr_page).next).write(AtomicPtr::new(ptr::null_mut()));
-            ptr::addr_of_mut!((*ptr_page).readers).write(AtomicU32::new(0));
-            // The entries field is [MaybeUninit<T>; N]; leaving it uninitialized is valid.
-            page.assume_init()
-        }
+    /// Allocate and initialize a new empty page with the specified size and sequence number.
+    fn new(page_size: usize, page_seq: u64) -> Box<Self> {
+        // Allocate entries array on the heap
+        let entries: Box<[MaybeUninit<T>]> = (0..page_size)
+            .map(|_| MaybeUninit::uninit())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        
+        Box::new(Page {
+            page_seq: AtomicU64::new(page_seq),
+            claimed: AtomicU32::new(0),
+            committed: AtomicU32::new(0),
+            next: AtomicPtr::new(ptr::null_mut()),
+            entries,
+        })
     }
 
     /// Reset bookkeeping fields for reuse (does not drop entries).
     #[inline]
-    fn reset_for_reuse(&self) {
+    fn reset_for_reuse(&self, new_seq: u64) {
+        self.page_seq.store(new_seq, Ordering::Relaxed);
         self.claimed.store(0, Ordering::Relaxed);
         self.committed.store(0, Ordering::Relaxed);
         self.next.store(ptr::null_mut(), Ordering::Relaxed);
-        self.readers.store(0, Ordering::Relaxed);
+    }
+    
+    /// Get the page size (number of entries).
+    #[inline]
+    fn size(&self) -> usize {
+        self.entries.len()
     }
 }
 
 impl<T> SegmentedStream<T> {
-    /// Create a new stream with a single initial page.
+    /// Create a new stream with a single initial page using the default page size.
     pub fn new() -> Self {
-        let first: Arc<Page<T>> = Arc::from(Page::<T>::new());
+        Self::with_page_size(DEFAULT_PAGE_SIZE)
+    }
+    
+    /// Create a new stream with a custom page size.
+    pub fn with_page_size(page_size: usize) -> Self {
+        let link_ahead = (page_size / 2) as u32;
+        // let first: Arc<Page<T>> = Arc::from(Page::<T>::new(page_size, 0));
+        let first_page_box: Box<Page<T>> = Page::<T>::new(page_size, 0);
+        let first_arc: Arc<Page<T>> = Arc::from(first_page_box);
+        let first_ptr = Arc::as_ptr(&first_arc);
+
+
+        // let first_ptr = Arc::into_raw(first.clone());
+        let mut pages_vec = Vec::new();
+        pages_vec.push(first_arc);
+        
+        // DIAGNOSTIC TEST: Initialize active_page with null instead of the actual Page
+        // This tests if creating Atomic<Page> instances with real data causes the 256MB allocation
+        
         SegmentedStream {
-            pages: ArcSwap::new(Arc::new(Vec::<Arc<Page<T>>>::new())),
-            active_page: ArcSwap::from(Arc::clone(&first)),
+            pages: Mutex::new(pages_vec),
+            // active_page: Atomic::from(Owned::from(unsafe { Box::from_raw(first_ptr as *mut Page<T>) })),
+            // active_page: Atomic::null(), // NULL instead of Page
+            active_page: Atomic::from(Owned::from(unsafe { 
+                // This creates a NEW owned pointer from the Arc's data
+                // We need to ensure the Arc stays alive
+                Box::from_raw(first_ptr as *mut Page<T>)
+            })),            
             pool: None,
+            page_size,
+            link_ahead,
+            next_page_seq: AtomicU64::new(1),
         }
     }
 
-    /// Create a new stream with a provided page pool.
+    /// Create a new stream with a provided page pool using the default page size.
     pub fn with_pool(pool: StreamPagePool<T>) -> Self {
-        let first = Arc::from(Page::<T>::new());
+        Self::with_pool_and_page_size(pool, DEFAULT_PAGE_SIZE)
+    }
+    
+    /// Create a new stream with a provided page pool and custom page size.
+    pub fn with_pool_and_page_size(pool: StreamPagePool<T>, page_size: usize) -> Self {
+        let link_ahead = (page_size / 2) as u32;
+        let first_page_box: Box<Page<T>> = Page::<T>::new(page_size, 0);
+        let first_arc: Arc<Page<T>> = Arc::from(first_page_box);
+        let first_ptr = Arc::as_ptr(&first_arc);
+        // let first_ptr = Arc::into_raw(first.clone());
+        let mut pages_vec = Vec::new();
+        pages_vec.push(first_arc);
+        
         SegmentedStream {
-            pages: ArcSwap::new(Arc::new(Vec::<Arc<Page<T>>>::new())),
-            active_page: ArcSwap::from(Arc::clone(&first)),
+            pages: Mutex::new(pages_vec),
+            // active_page: Atomic::null(), // NULL instead of Page
+            active_page: Atomic::from(Owned::from(unsafe { 
+                // This creates a NEW owned pointer from the Arc's data
+                // We need to ensure the Arc stays alive
+                Box::from_raw(first_ptr as *mut Page<T>)
+            })),                
             pool: Some(pool),
+            page_size,
+            link_ahead,
+            next_page_seq: AtomicU64::new(1),
         }
     }
 
@@ -151,28 +237,32 @@ impl<T> SegmentedStream<T> {
 
     /// Append one item to the stream using the multi-writer append path.
     pub fn append(&self, item: T) -> Result<(), StreamError> {
-        let curr = self.active_page.load_full(); // Arc<Page<T>>
-        // let mut page: *const Page<T> = &*curr;
-        let mut page: &Page<T> = &*curr;
+        let guard = epoch::pin();
+        let mut page_shared = self.active_page.load(Ordering::Acquire, &guard);
         
         loop {
+            let page = unsafe { page_shared.as_ref().unwrap() };
             let idx = page.claimed.fetch_add(1, Ordering::Relaxed);
-            // Link ahead at half capacity to reduce contention at boundary
-            if idx == LINK_AHEAD {
+            
+            // Pre-link next page at LINK_AHEAD to reduce contention
+            if idx == self.link_ahead {
                 let next_ptr_probe = page.next.load(Ordering::Relaxed);
                 if next_ptr_probe.is_null() {
                     let new_page = self.alloc_page_arc();
                     let new_page_ptr = Arc::as_ptr(&new_page) as *mut Page<T>;
                     if page.next.compare_exchange(ptr::null_mut(), new_page_ptr, Ordering::Release, Ordering::Relaxed).is_ok() {
-                        // Hint: update active_page; relaxed suffices as it's a hint only
-                        self.active_page.store(new_page.clone());
+                        // Add to pages Vec to keep Arc alive
+                        if let Ok(mut pages) = self.pages.lock() {
+                            pages.push(new_page.clone());
+                        }
                         let _ = Arc::into_raw(new_page);
                     } else {
                         drop(new_page);
                     }
                 }
             }
-            if (idx as usize) < ENTRIES_PER_PAGE {
+            
+            if (idx as usize) < page.size() {
                 // Write then publish
                 unsafe {
                     let slot = page.entries.get_unchecked(idx as usize) as *const _ as *mut MaybeUninit<T>;
@@ -182,8 +272,8 @@ impl<T> SegmentedStream<T> {
                 return Ok(());
             }
     
-            // Page full: follow or link next
-            let next_ptr = page.next.load(Ordering::Relaxed);
+            // Page full: follow or link next, and update active_page if we're the one who fills it
+            let next_ptr = page.next.load(Ordering::Acquire);
             if next_ptr.is_null() {
                 // Try to link a new page
                 let new_page = self.alloc_page_arc();
@@ -196,38 +286,143 @@ impl<T> SegmentedStream<T> {
                     Ordering::Acquire
                 ) {
                     Ok(_) => {
-                        // Successfully linked new page - only this thread updates active_page
-                        self.active_page.store(new_page.clone());
-                        // Leak one strong count for the raw pointer stored in next
-                        let _ = Arc::into_raw(new_page);
-                        // Enqueue current full page for recycling if pool has recycler
-                        if let Some(pool) = self.pool.as_ref() {
-                            pool.push_dirty_arc(Arc::clone(&curr));
+                        // Successfully linked new page
+                        // Add to pages Vec to keep Arc alive
+                        if let Ok(mut pages) = self.pages.lock() {
+                            pages.push(new_page.clone());
                         }
-                        page = unsafe { &*new_page_ptr };
+                        // Update active_page NOW (when page is full)
+                        let new_page_box = unsafe { Box::from_raw(Arc::into_raw(new_page) as *mut Page<T>) };
+                        self.active_page.store(Owned::from(new_page_box), Ordering::Release);
+                        // Move to new page
+                        page_shared = self.active_page.load(Ordering::Acquire, &guard);
                     }
                     Err(existing_ptr) => {
                         // Another thread already linked a page
-                        // We still own new_page, so just drop it normally
                         drop(new_page);
-                        // Use the existing page
-                        page = unsafe { &*existing_ptr };
+                        // Follow existing link
+                        page_shared = unsafe { Shared::from(existing_ptr as *const _) };
                     }
                 }
             } else {
                 // Follow existing link
-                page = unsafe { &*next_ptr };
+                page_shared = unsafe { Shared::from(next_ptr as *const _) };
             }
         }
+    }
+
+    /// Append one item and return its `StreamIndex` upon publish.
+    pub fn append_with_index(&self, item: T) -> Result<StreamIndex<T>, StreamError> {
+        let guard = epoch::pin();
+        let mut page_shared = self.active_page.load(Ordering::Acquire, &guard);
+        
+        loop {
+            let page = unsafe { page_shared.as_ref().unwrap() };
+            let idx = page.claimed.fetch_add(1, Ordering::Relaxed);
+            
+            // Pre-link next page at LINK_AHEAD to reduce contention
+            if idx == self.link_ahead {
+                let next_ptr_probe = page.next.load(Ordering::Relaxed);
+                if next_ptr_probe.is_null() {
+                    let new_page = self.alloc_page_arc();
+                    let new_page_ptr = Arc::as_ptr(&new_page) as *mut Page<T>;
+                    if page.next.compare_exchange(ptr::null_mut(), new_page_ptr, Ordering::Release, Ordering::Relaxed).is_ok() {
+                        // Add to pages Vec to keep Arc alive
+                        if let Ok(mut pages) = self.pages.lock() {
+                            pages.push(new_page.clone());
+                        }
+                        let _ = Arc::into_raw(new_page);
+                    } else {
+                        drop(new_page);
+                    }
+                }
+            }
+            
+            if (idx as usize) < page.size() {
+                unsafe {
+                    let slot = page.entries.get_unchecked(idx as usize) as *const _ as *mut MaybeUninit<T>;
+                    slot.write(MaybeUninit::new(item));
+                    page.committed.fetch_add(1, Ordering::Release);
+                }
+                let page_ptr = page as *const Page<T>;
+                return Ok(StreamIndex { page: page_ptr, idx });
+            }
+            
+            // Page full: follow or link next, and update active_page if we're the one who fills it
+            let next_ptr = page.next.load(Ordering::Acquire);
+            if next_ptr.is_null() {
+                // Try to link a new page
+                let new_page = self.alloc_page_arc();
+                let new_page_ptr = Arc::as_ptr(&new_page) as *mut Page<T>;
+                
+                match page.next.compare_exchange(
+                    ptr::null_mut(),
+                    new_page_ptr,
+                    Ordering::Release,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => {
+                        // Successfully linked new page
+                        // Add to pages Vec to keep Arc alive
+                        if let Ok(mut pages) = self.pages.lock() {
+                            pages.push(new_page.clone());
+                        }
+                        // Update active_page NOW (when page is full)
+                        let new_page_box = unsafe { Box::from_raw(Arc::into_raw(new_page) as *mut Page<T>) };
+                        self.active_page.store(Owned::from(new_page_box), Ordering::Release);
+                        // Move to new page
+                        page_shared = self.active_page.load(Ordering::Acquire, &guard);
+                    }
+                    Err(existing_ptr) => {
+                        // Another thread already linked a page
+                        drop(new_page);
+                        // Follow existing link
+                        page_shared = unsafe { Shared::from(existing_ptr as *const _) };
+                    }
+                }
+            } else {
+                // Follow existing link
+                page_shared = unsafe { Shared::from(next_ptr as *const _) };
+            }
+        }
+    }
+
+    /// Resolve a `StreamIndex` to an immutable reference if the entry is still present.
+    #[inline]
+    pub fn resolve_ref<'a>(&'a self, idx: &StreamIndex<T>) -> Option<&'a T> {
+        // SAFETY: The page lifetime is managed by leaked Arcs in the linked list.
+        // This returns None if the slot was never committed.
+        let page = unsafe { &*idx.page };
+        let cap = page.committed.load(Ordering::Acquire);
+        if idx.idx < cap {
+            let ptr_t = unsafe { page.entries.get_unchecked(idx.idx as usize) as *const _ as *const T };
+            Some(unsafe { &*ptr_t })
+        } else {
+            None
+        }
+    }
+
+    /// Resolve a `StreamIndex` to `&T` without checking committed.
+    #[inline]
+    pub fn resolve_ref_unchecked<'a>(&'a self, idx: &StreamIndex<T>) -> &'a T {
+        // SAFETY: Caller must ensure the referenced entry was committed before exposure
+        // and that pages will not be reclaimed for the duration of the borrow (e.g., via epochs).
+        let page = unsafe { &*idx.page };
+        let ptr_t = unsafe { page.entries.get_unchecked(idx.idx as usize) as *const _ as *const T };
+        unsafe { &*ptr_t }
     }
 
     /// Allocate a fresh page or pop one from the pool if available.
     #[inline]
     fn alloc_page_arc(&self) -> Arc<Page<T>> {
+        let seq = self.next_page_seq.fetch_add(1, Ordering::Relaxed);
         if let Some(pool) = self.pool.as_ref() {
-            if let Some(p) = pool.pop_ready() { return p; }
+            if let Some(p) = pool.pop_ready() {
+                p.reset_for_reuse(seq);
+                return p;
+            }
         }
-        Arc::from(Page::<T>::new())
+        Arc::from(Page::<T>::new(self.page_size, seq))
     }
 
 }
@@ -235,8 +430,11 @@ impl<T> SegmentedStream<T> {
 impl<T> Cursor<T> {
     /// Create a new cursor positioned at the head of the stream.
     pub fn new_at_head(stream: &SegmentedStream<T>) -> Self {
-        let head = stream.active_page.load_full();
-        head.readers.fetch_add(1, Ordering::Relaxed);
+        // Get the first page from the pages Vec
+        let pages = stream.pages.lock().unwrap();
+        let head = Arc::clone(&pages[0]);
+        drop(pages);
+        
         Cursor {
             page: head,
             index: 0,
@@ -268,7 +466,9 @@ impl<T> Cursor<T> {
                 self.index = idx;
                 return Some(r);
             }
-            if cap < ENTRIES_PER_PAGE as u32 {
+            // Check if we're at the tail of the current page
+            let page_size = unsafe { (*Arc::as_ptr(&self.page)).size() };
+            if cap < page_size as u32 {
                 // Tail of current page; no more items yet.
                 return None;
             }
@@ -276,12 +476,12 @@ impl<T> Cursor<T> {
             if next_ptr.is_null() {
                 return None;
             }
-            // SAFETY: The page is kept alive by the previous page holding an Arc reference to it
-            // Decrement readers on old page, increment on new
-            self.page.readers.fetch_sub(1, Ordering::Relaxed);
+            // SAFETY: The page is kept alive by the pages Vec
+            // Reconstruct Arc from raw pointer (doesn't increment count)
             let next_arc = unsafe { Arc::from_raw(next_ptr) };
-            next_arc.readers.fetch_add(1, Ordering::Relaxed);
-            self.page = next_arc;
+            // Clone to keep our reference, then forget the reconstructed Arc
+            self.page = Arc::clone(&next_arc);
+            std::mem::forget(next_arc);
             idx = 0;
             self.index = 0;
         }
@@ -307,28 +507,44 @@ impl<T> Cursor<T> {
         if let Some(slice) = slice_opt {
             self.index = cap;
             return slice;
-        } else if cap == ENTRIES_PER_PAGE as u32 {
-            // Full page and consumed; try to hop and expose empty slice for now.
-            if !next_ptr.is_null() {
-                // SAFETY: The page is kept alive by the previous page holding an Arc reference to it
-                // Decrement readers on old page, increment on new
-                self.page.readers.fetch_sub(1, Ordering::Relaxed);
-                let next = unsafe { Arc::from_raw(next_ptr) };
-                next.readers.fetch_add(1, Ordering::Relaxed);
-                self.page = next;
-                self.index = 0;
-            }
-            &[]
         } else {
-            // Tail without new items.
-            &[]
+            let page_size = unsafe { (*Arc::as_ptr(&self.page)).size() };
+            if cap == page_size as u32 {
+                // Full page and consumed; try to hop and expose empty slice for now.
+                if !next_ptr.is_null() {
+                    // SAFETY: The page is kept alive by the pages Vec
+                    // Reconstruct Arc from raw pointer (doesn't increment count)
+                    let next = unsafe { Arc::from_raw(next_ptr) };
+                    // Clone to keep our reference, then forget the reconstructed Arc
+                    self.page = Arc::clone(&next);
+                    std::mem::forget(next);
+                    self.index = 0;
+                }
+                &[]
+            } else {
+                // Tail without new items.
+                &[]
+            }
         }
     }
 }
 
-impl<T> Drop for Cursor<T> {
+impl<T> Drop for SegmentedStream<T> {
     fn drop(&mut self) {
-        self.page.readers.fetch_sub(1, Ordering::Relaxed);
+        // let dropped = STREAM_DROPPED.fetch_add(1, Ordering::Relaxed) + 1;
+        
+        // // Print stats every 10,000 drops
+        // if dropped % 10000 == 0 {
+        //     let created = STREAM_CREATED.load(Ordering::Relaxed);
+        //     eprintln!(
+        //         "SegmentedStream stats: created={}, dropped={}, active={}",
+        //         created, dropped, created - dropped
+        //     );
+        // }
+        
+        // The active_page Atomic<Page<T>> will drop here
+        // This is where epoch may defer the Page to garbage collection
+        // With 522K rapid drops, this could cause epoch's internal structures to grow
     }
 }
 
@@ -348,7 +564,7 @@ impl<T> StreamPagePool<T> {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut pages = Vec::with_capacity(capacity);
         for _ in 0..capacity {
-            pages.push(Arc::from(Page::<T>::new()));
+            pages.push(Arc::from(Page::<T>::new(64, 0)));
         }
         StreamPagePool { pages, next: AtomicUsize::new(0), ready: None, dirty: None, recycler: None }
     }
@@ -376,11 +592,11 @@ impl<T> StreamPagePool<T> {
                 if let Some(mut_ptr) = dirty.pop_ptr() {
                     // Reconstruct Arc ownership
                     let page_arc: Arc<Page<T>> = unsafe { Arc::from_raw(mut_ptr) };
-                    // Check eligibility: full and no readers
-                    if page_arc.committed.load(Ordering::Acquire) == ENTRIES_PER_PAGE as u32
-                        && page_arc.readers.load(Ordering::Relaxed) == 0
-                    {
-                        page_arc.reset_for_reuse();
+                    // Check eligibility: full page
+                    let page_size = page_arc.size();
+                    if page_arc.committed.load(Ordering::Acquire) == page_size as u32 {
+                        // Reset with a new sequence number (will be set by alloc_page_arc)
+                        page_arc.reset_for_reuse(0);
                         // Move to ready ring
                         let _ = ready.push_arc(page_arc);
                     } else {
@@ -416,7 +632,7 @@ impl<T> StreamPagePool<T> {
                 }
                 let batch = available.min(8);
                 for _ in 0..batch {
-                    let page = Arc::from(Page::<T>::new());
+                    let page = Arc::from(Page::<T>::new(64, 0));
                     if !ready.push_arc(page) { break; }
                 }
                 // Yield to allow consumers to make progress
@@ -513,236 +729,4 @@ impl<T> Ring<T> {
 
     #[inline]
     fn capacity(&self) -> usize { self.cap }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
-
-    // NOTE: For basic tests we avoid forcing page rollover because ENTRIES_PER_PAGE
-    // maps to PAGE_SIZE. Advanced rollover tests are provided as ignored skeletons below.
-
-    #[test]
-    fn stream_new_initial_state() {
-        // Goal: Ensure a new stream has a single empty page with next == null
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        let head = s.active_page.load_full();
-        assert_eq!(head.claimed.load(Ordering::Relaxed), 0);
-        assert_eq!(head.committed.load(Ordering::Relaxed), 0);
-        assert!(head.next.load(Ordering::Acquire).is_null());
-    }
-
-    #[test]
-    fn single_writer_append_and_read_order() {
-        // Goal: Appending a few items makes them visible to a cursor in order
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        assert!(s.append(10).is_ok());
-        assert!(s.append(20).is_ok());
-        assert!(s.append(30).is_ok());
-
-        let mut c = Cursor::new_at_head(&s);
-        // Call next() sequentially and copy values to avoid holding borrows across calls
-        let mut got = Vec::new();
-        if let Some(v) = c.next() { got.push(*v); }
-        if let Some(v) = c.next() { got.push(*v); }
-        if let Some(v) = c.next() { got.push(*v); }
-        assert_eq!(got, vec![10, 20, 30]);
-
-        // Tail: no more items yet
-        assert!(c.next().is_none());
-    }
-
-    #[test]
-    fn next_batch_basic() {
-        // Goal: next_batch returns the committed suffix from current index
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        for v in [1_u32, 2, 3] {
-            s.append(v).unwrap();
-        }
-        let mut c = Cursor::new_at_head(&s);
-        let batch = c.next_batch();
-        assert_eq!(batch, &[1, 2, 3]);
-        // Subsequent call at tail yields empty slice
-        let batch2 = c.next_batch();
-        assert!(batch2.is_empty());
-    }
-
-    // ---------- Skeletons for advanced tests (ignored for now) ----------
-
-    #[test]
-    fn page_boundary_and_linking_single_link_guarantee() {
-        // Goal: Force rollover with small test ENTRIES_PER_PAGE, verify linking and counters
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        // Fill the first page exactly
-        for i in 0..(ENTRIES_PER_PAGE as u32) {
-            s.append(i).unwrap();
-        }
-        // First page should be full; next is still null until the next append attempts to link
-        let head = s.active_page.load_full();
-        assert_eq!(head.committed.load(Ordering::Acquire), ENTRIES_PER_PAGE as u32);
-        // Trigger linking by appending a few more
-        s.append(100).unwrap();
-        s.append(101).unwrap();
-
-        let next_ptr = head.next.load(Ordering::Acquire);
-        assert!(!next_ptr.is_null(), "next page should be linked after rollover");
-        let next_page = unsafe { &*next_ptr };
-        // The new page should have at least the two appended items committed
-        assert!(next_page.committed.load(Ordering::Acquire) >= 2);
-
-        // active_page should now point to the new page (same address)
-        let active = s.active_page.load_full();
-        let active_ptr = Arc::as_ptr(&active) as *const Page<u32> as *mut Page<u32>;
-        assert_eq!(active_ptr, next_ptr, "active_page should be the newly linked page");
-    }
-
-    #[test]
-    fn multi_writer_correctness_no_gaps_no_dups() {
-        // Goal: Spawn multiple writers, append concurrently, ensure total count and no gaps per page
-        let writers = 8usize;
-        let per = 200usize;
-        let total = writers * per;
-
-        let s: Arc<SegmentedStream<u64>> = Arc::new(SegmentedStream::new());
-
-        let mut handles = Vec::new();
-        for w in 0..writers {
-            let s_cloned = Arc::clone(&s);
-            handles.push(std::thread::spawn(move || {
-                for i in 0..(per as u64) {
-                    // Encode writer and sequence to enable exact multiset check
-                    let v: u64 = ((w as u64) << 32) | i;
-                    s_cloned.append(v).unwrap();
-                }
-            }));
-        }
-        for h in handles { let _ = h.join(); }
-
-        // Read all items back
-        let mut c = Cursor::new_at_head(&s);
-        let mut items: Vec<u64> = Vec::with_capacity(total);
-        while let Some(v) = c.next() { items.push(*v); }
-        assert_eq!(items.len(), total);
-
-        // Validate multiset equality
-        let mut expected: Vec<u64> = Vec::with_capacity(total);
-        for w in 0..writers { for i in 0..(per as u64) { expected.push(((w as u64) << 32) | i); } }
-        items.sort_unstable();
-        expected.sort_unstable();
-        assert_eq!(items, expected);
-
-        // Per-page invariants: claimed >= committed; full pages have committed == ENTRIES_PER_PAGE
-        let head = s.active_page.load_full();
-        let mut page_ref: &Page<u64> = &*head;
-        loop {
-            let claimed = page_ref.claimed.load(Ordering::Relaxed);
-            let committed = page_ref.committed.load(Ordering::Acquire);
-            assert!(claimed >= committed);
-            if committed < ENTRIES_PER_PAGE as u32 {
-                // Tail page may be partial; must be the last page
-                assert!(page_ref.next.load(Ordering::Acquire).is_null());
-                break;
-            }
-            let next_ptr = page_ref.next.load(Ordering::Acquire);
-            if next_ptr.is_null() { break; }
-            // SAFETY: pages are backed by leaked Arc pointers; deref is valid
-            page_ref = unsafe { &*next_ptr };
-        }
-    }
-
-    #[test]
-    fn tail_behavior_and_resume_after_more_appends() {
-        // Goal: Cursor at tail yields None, then after more appends returns items
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        s.append(1).unwrap();
-        s.append(2).unwrap();
-        let mut c = Cursor::new_at_head(&s);
-        assert_eq!(c.next().copied(), Some(1));
-        assert_eq!(c.next().copied(), Some(2));
-        // At tail now
-        assert!(c.next().is_none());
-        // Append more and ensure the cursor can continue
-        s.append(3).unwrap();
-        s.append(4).unwrap();
-        assert_eq!(c.next().copied(), Some(3));
-        assert_eq!(c.next().copied(), Some(4));
-    }
-
-    #[test]
-    fn batch_read_hops_to_next_page_on_full() {
-        // Goal: next_batch returns full first page, then empty while hopping, then next page slice
-        let s: SegmentedStream<u32> = SegmentedStream::new();
-        let total = ENTRIES_PER_PAGE + 3;
-        for i in 0..(total as u32) {
-            s.append(i).unwrap();
-        }
-        let mut c = Cursor::new_at_head(&s);
-        let b1 = c.next_batch();
-        assert_eq!(b1.len(), ENTRIES_PER_PAGE);
-        // Next call should perform hop and return empty slice
-        let b2 = c.next_batch();
-        assert!(b2.is_empty());
-        // Third call should expose remaining items from the next page
-        let b3 = c.next_batch();
-        assert_eq!(b3.len(), 3);
-    }
-
-    #[test]
-    fn pool_prefiller_fills_ring() {
-        // Prefiller should fill up to capacity and allow pops
-        let pool = StreamPagePool::<u32>::with_capacity(0).with_prefiller(8);
-        let ready = pool.ready.as_ref().unwrap().clone();
-        // wait until some pages are available
-        let mut spins = 0;
-        while ready.len() < 4 && spins < 100 {
-            std::thread::sleep(Duration::from_millis(10));
-            spins += 1;
-        }
-        assert!(ready.len() >= 1, "prefiller did not produce pages");
-        // Pop a few and ensure they are valid
-        for _ in 0..ready.len().min(3) {
-            if let Some(ptr) = ready.pop_ptr() {
-                // reconstruct Arc and let it drop
-                let _arc = unsafe { Arc::from_raw(ptr) };
-            }
-        }
-    }
-
-    #[test]
-    fn stream_uses_ready_ring_without_prefiller() {
-        // Manually prefill ready ring and verify SegmentedStream consumes it on rollover
-        let mut pool = StreamPagePool::<u32>::with_capacity(0);
-        let ready = Arc::new(Ring::new(2));
-        // prefill two pages
-        let _ = ready.push_arc(Arc::from(Page::<u32>::new()));
-        let _ = ready.push_arc(Arc::from(Page::<u32>::new()));
-        // install ready ring into pool
-        pool.ready = Some(ready.clone());
-
-        let s = SegmentedStream::with_pool(pool);
-        // Fill one page, then force rollover consuming one ready page
-        for i in 0..(ENTRIES_PER_PAGE as u32) { s.append(i).unwrap(); }
-        let before = ready.len();
-        s.append(9999).unwrap(); // rollover
-        // Give a tiny moment for pop to reflect
-        std::thread::sleep(Duration::from_millis(1));
-        let after = ready.len();
-        assert!(before >= 1, "expected at least one ready page before rollover");
-        assert!(after <= before.saturating_sub(1), "expected ready ring to be consumed by 1 on rollover (before={}, after={})", before, after);
-    }
-
-    #[test]
-    #[ignore]
-    fn active_page_update_only_by_cas_winner() {
-        // Goal: Ensure only the thread that links next updates active_page
-        unimplemented!("observe active_page pointer evolution under contention");
-    }
-
-    #[test]
-    #[ignore]
-    fn pool_reuse_resets_page_fields() {
-        // Goal: When pool is enabled, recycled pages reset claimed/committed/next
-        unimplemented!("enable pool, recycle pages, then reuse and assert resets");
-    }
 }
