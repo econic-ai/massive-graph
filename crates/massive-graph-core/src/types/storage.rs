@@ -1,10 +1,10 @@
 /// Storage
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
 use arc_swap::ArcSwap;
 use crossbeam::queue::SegQueue;
 use core::marker::PhantomData;
-use crate::structures::optimised_index::OptimisedIndex;
+// use crate::structures::mph_delta_index::OptimisedIndex;
 use crate::types::document::{DocumentHeader};
 use crate::types::ChunkId;
 use crate::DocId;
