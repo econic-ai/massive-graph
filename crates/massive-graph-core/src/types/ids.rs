@@ -18,7 +18,7 @@ use crate::constants::{BASE62_CHARS, ID8_LENGTH, ID16_LENGTH, ID32_LENGTH};
 /// The #[repr(transparent)] ensures the struct has the same ABI as the underlying array,
 /// enabling direct transmutation in zero-copy operations.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ID16([u8; ID16_LENGTH]);
 
 /// Fixed-size 8-byte identifier optimized for delta/operation tracking.
@@ -31,7 +31,7 @@ pub struct ID16([u8; ID16_LENGTH]);
 /// The #[repr(transparent)] ensures the struct has the same ABI as the underlying array,
 /// enabling direct transmutation in zero-copy operations.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ID8([u8; ID8_LENGTH]);
 
 /// Fixed-size 32-byte identifier optimized for user identification.
@@ -44,7 +44,7 @@ pub struct ID8([u8; ID8_LENGTH]);
 /// The #[repr(transparent)] ensures the struct has the same ABI as the underlying array,
 /// enabling direct transmutation in zero-copy operations.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ID32([u8; ID32_LENGTH]);    
 
 impl ID16 {
@@ -162,6 +162,13 @@ impl ID32 {
     }
 }    
 
+/// Debug formatting for ID16 - shows base62 string representation
+impl fmt::Debug for ID16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ID16(\"{}\")", self.as_str())
+    }
+}
+
 /// String conversion for ID16
 impl fmt::Display for ID16 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -169,10 +176,24 @@ impl fmt::Display for ID16 {
     }
 }
 
+/// Debug formatting for ID8 - shows base62 string representation
+impl fmt::Debug for ID8 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ID8(\"{}\")", self.as_str())
+    }
+}
+
 /// String conversion for ID8
 impl fmt::Display for ID8 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+/// Debug formatting for ID32 - shows base62 string representation
+impl fmt::Debug for ID32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ID32(\"{}\")", self.as_str())
     }
 }
 
