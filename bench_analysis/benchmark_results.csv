@@ -1,0 +1,504 @@
+run_id,benchmark,test_name,operation,size,median_ns,mean_ns,throughput_ops_sec,throughput_pretty,timestamp,tag
+20251017_155611,compare_get_16b,dashmap_iter_all/10000,dashmap_iter_all,10000,353416.31,359886.36,28295241.91,28.30 Mops/s,2025-10-17T15:56:11.513416,notebook analysis
+20251017_155257,compare_get_16b,dashmap_iter_all/64,dashmap_iter_all,64,9850.35,9998.67,6497231.22,6.50 Mops/s,2025-10-17T15:52:57.707114,notebook analysis
+20251017_155759,compare_get_16b,dashmap_iter_all/65536,dashmap_iter_all,65536,2441224.19,2485109.34,26845547.51,26.85 Mops/s,2025-10-17T15:57:59.097616,notebook analysis
+20251017_155431,compare_get_16b,dashmap_iter_all/1024,dashmap_iter_all,1024,30117.36,30802.93,34000324.7,34.00 Mops/s,2025-10-17T15:54:31.743212,notebook analysis
+20251017_155512,compare_get_16b,hashmap_get/10000,hashmap_get,10000,87296.3,88662.52,114552389.54,114.55 Mops/s,2025-10-17T15:55:12.198539,notebook analysis
+20251017_155159,compare_get_16b,hashmap_get/64,hashmap_get,64,516.73,522.84,123856758.15,123.86 Mops/s,2025-10-17T15:51:59.487430,notebook analysis
+20251017_155652,compare_get_16b,hashmap_get/65536,hashmap_get,65536,660148.8,671933.72,99274588.36,99.27 Mops/s,2025-10-17T15:56:52.008236,notebook analysis
+20251017_155333,compare_get_16b,hashmap_get/1024,hashmap_get,1024,8279.48,8432.73,123679235.7,123.68 Mops/s,2025-10-17T15:53:33.613658,notebook analysis
+20251017_155551,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,83670.26,85105.18,119516780.98,119.52 Mops/s,2025-10-17T15:55:51.342901,notebook analysis
+20251017_155237,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,428.84,439.34,149239775.11,149.24 Mops/s,2025-10-17T15:52:37.061206,notebook analysis
+20251017_155737,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1227415.78,1251784.48,53393479.93,53.39 Mops/s,2025-10-17T15:57:37.038598,notebook analysis
+20251017_155411,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6951.0,7155.03,147316846.04,147.32 Mops/s,2025-10-17T15:54:11.815515,notebook analysis
+20251017_155630,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,101087.03,104494.02,98924655.05,98.92 Mops/s,2025-10-17T15:56:30.048213,notebook analysis
+20251017_155315,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,832.51,847.69,76875777.71,76.88 Mops/s,2025-10-17T15:53:15.401684,notebook analysis
+20251017_155821,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,579874.84,596699.09,113017491.38,113.02 Mops/s,2025-10-17T15:58:21.470409,notebook analysis
+20251017_155452,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,11187.96,11367.9,91526973.16,91.53 Mops/s,2025-10-17T15:54:52.199401,notebook analysis
+20251017_155559,compare_get_16b,hashmap_iter_all/10000,hashmap_iter_all,10000,105213.01,107830.11,95045280.39,95.05 Mops/s,2025-10-17T15:55:59.919643,notebook analysis
+20251017_155247,compare_get_16b,hashmap_iter_all/64,hashmap_iter_all,64,294.39,297.16,217399354.89,217.40 Mops/s,2025-10-17T15:52:47.242846,notebook analysis
+20251017_155748,compare_get_16b,hashmap_iter_all/65536,hashmap_iter_all,65536,1216713.46,1242977.24,53863133.68,53.86 Mops/s,2025-10-17T15:57:48.682401,notebook analysis
+20251017_155422,compare_get_16b,hashmap_iter_all/1024,hashmap_iter_all,1024,5078.45,5154.73,201636204.12,201.64 Mops/s,2025-10-17T15:54:22.401389,notebook analysis
+20251017_155521,compare_get_16b,dashmap_get/10000,dashmap_get,10000,106397.73,107968.78,93986969.54,93.99 Mops/s,2025-10-17T15:55:21.373052,notebook analysis
+20251017_155209,compare_get_16b,dashmap_get/64,dashmap_get,64,611.67,622.94,104631969.3,104.63 Mops/s,2025-10-17T15:52:09.904811,notebook analysis
+20251017_155704,compare_get_16b,dashmap_get/65536,dashmap_get,65536,851716.05,869338.53,76945832.22,76.95 Mops/s,2025-10-17T15:57:04.527603,notebook analysis
+20251017_155344,compare_get_16b,dashmap_get/1024,dashmap_get,1024,9855.85,10003.74,103897726.37,103.90 Mops/s,2025-10-17T15:53:44.048658,notebook analysis
+20251017_155621,compare_get_16b,btree_iter_all/10000,btree_iter_all,10000,127758.11,130467.81,78272919.36,78.27 Mops/s,2025-10-17T15:56:21.234320,notebook analysis
+20251017_155306,compare_get_16b,btree_iter_all/64,btree_iter_all,64,438.86,446.22,145832016.99,145.83 Mops/s,2025-10-17T15:53:06.645477,notebook analysis
+20251017_155810,compare_get_16b,btree_iter_all/65536,btree_iter_all,65536,1188763.0,1223039.5,55129575.91,55.13 Mops/s,2025-10-17T15:58:10.392469,notebook analysis
+20251017_155441,compare_get_16b,btree_iter_all/1024,btree_iter_all,1024,7581.09,7767.51,135072871.49,135.07 Mops/s,2025-10-17T15:54:41.023970,notebook analysis
+20251017_155639,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,31466.73,31963.84,317795947.56,317.80 Mops/s,2025-10-17T15:56:39.439385,notebook analysis
+20251017_155323,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,201.28,203.9,317967238.02,317.97 Mops/s,2025-10-17T15:53:23.997234,notebook analysis
+20251017_155830,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,205200.52,208172.84,319375408.92,319.38 Mops/s,2025-10-17T15:58:30.439546,notebook analysis
+20251017_155500,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3216.37,3258.89,318371779.24,318.37 Mops/s,2025-10-17T15:55:00.834697,notebook analysis
+20251017_155540,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,213080.43,216735.94,46930635.83,46.93 Mops/s,2025-10-17T15:55:40.418351,notebook analysis
+20251017_155228,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,186.27,191.08,343585227.18,343.59 Mops/s,2025-10-17T15:52:28.212652,notebook analysis
+20251017_155725,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,5073264.55,5212089.51,12917914.95,12.92 Mops/s,2025-10-17T15:57:25.677569,notebook analysis
+20251017_155402,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,3973.53,4038.86,257705353.69,257.71 Mops/s,2025-10-17T15:54:02.911701,notebook analysis
+20251017_155531,compare_get_16b,btree_get/10000,btree_get,10000,255461.5,261745.53,39144841.79,39.14 Mops/s,2025-10-17T15:55:31.148182,notebook analysis
+20251017_155219,compare_get_16b,btree_get/64,btree_get,64,557.64,566.05,114769795.18,114.77 Mops/s,2025-10-17T15:52:19.835163,notebook analysis
+20251017_155715,compare_get_16b,btree_get/65536,btree_get,65536,2497320.83,2548498.4,26242523.32,26.24 Mops/s,2025-10-17T15:57:15.030201,notebook analysis
+20251017_155353,compare_get_16b,btree_get/1024,btree_get,1024,16031.65,16215.16,63873669.49,63.87 Mops/s,2025-10-17T15:53:53.480394,notebook analysis
+20251017_182108,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,638828.83,652653.34,15653645.47,15.65 Mops/s,2025-10-17T18:21:08.789858,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182027,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,12512.74,12664.09,5114786.1,5.11 Mops/s,2025-10-17T18:20:27.269293,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182129,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,2375706.25,2451436.16,27585902.09,27.59 Mops/s,2025-10-17T18:21:29.693748,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182046,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,90569.8,92132.04,11306197.21,11.31 Mops/s,2025-10-17T18:20:46.626192,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182056,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,65484.8,66540.65,152707183.97,152.71 Mops/s,2025-10-17T18:20:56.461253,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182018,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,249.41,252.68,256604915.32,256.60 Mops/s,2025-10-17T18:20:18.540128,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182119,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1108872.5,1139167.83,59101474.94,59.10 Mops/s,2025-10-17T18:21:19.297993,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_182038,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5099.17,5219.85,200816948.49,200.82 Mops/s,2025-10-17T18:20:38.071041,Radix Appendonly Removed Seq locks for readers/writers and Optimised TinyMap
+20251017_192931,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,738397.57,753970.12,13542839.8,13.54 Mops/s,2025-10-17T19:29:31.542773,Count on TinyMap
+20251017_192848,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,10665.43,10847.54,6000698.28,6.00 Mops/s,2025-10-17T19:28:48.009940,Count on TinyMap
+20251017_192950,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,3562668.18,3625380.83,18395201.77,18.40 Mops/s,2025-10-17T19:29:50.798676,Count on TinyMap
+20251017_192910,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,88407.29,88897.58,11582754.64,11.58 Mops/s,2025-10-17T19:29:10.625965,Count on TinyMap
+20251017_192920,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,66042.94,67422.91,151416639.09,151.42 Mops/s,2025-10-17T19:29:20.557857,Count on TinyMap
+20251017_192836,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,249.53,254.56,256485613.39,256.49 Mops/s,2025-10-17T19:28:36.919144,Count on TinyMap
+20251017_192941,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1021949.05,1055044.26,64128441.69,64.13 Mops/s,2025-10-17T19:29:41.710728,Count on TinyMap
+20251017_192859,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5296.65,5418.31,193329866.36,193.33 Mops/s,2025-10-17T19:28:59.043987,Count on TinyMap
+20251017_194950,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,123748.1,125949.09,80809323.27,80.81 Mops/s,2025-10-17T19:49:50.721803,Iterator on TinyMap
+20251017_194910,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,1882.28,1918.99,34001318.02,34.00 Mops/s,2025-10-17T19:49:10.132703,Iterator on TinyMap
+20251017_195012,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,1294166.84,1261171.86,50639529.49,50.64 Mops/s,2025-10-17T19:50:12.779563,Iterator on TinyMap
+20251017_194931,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,18179.4,18472.22,56327497.29,56.33 Mops/s,2025-10-17T19:49:31.289050,Iterator on TinyMap
+20251017_194941,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,65293.37,66888.35,153154907.66,153.15 Mops/s,2025-10-17T19:49:41.076166,Iterator on TinyMap
+20251017_194900,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,247.7,252.42,258374473.89,258.37 Mops/s,2025-10-17T19:49:00.769747,Iterator on TinyMap
+20251017_195000,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,995688.98,1035509.82,65819750.57,65.82 Mops/s,2025-10-17T19:50:00.760924,Iterator on TinyMap
+20251017_194921,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5214.24,5322.57,196385265.36,196.39 Mops/s,2025-10-17T19:49:21.089339,Iterator on TinyMap
+20251018_095626,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,125896.09,127159.49,79430586.52,79.43 Mops/s,2025-10-18T09:56:26.429564,Dynamic bucket count
+20251018_095608,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,1164.02,1184.18,54981853.26,54.98 Mops/s,2025-10-18T09:56:08.204680,Dynamic bucket count
+20251018_095635,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,1925656.66,1987731.16,34033065.89,34.03 Mops/s,2025-10-18T09:56:35.866704,Dynamic bucket count
+20251018_095616,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,11699.54,11861.77,87524835.36,87.52 Mops/s,2025-10-18T09:56:16.714196,Dynamic bucket count
+20251018_093251,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,81217.24,82852.41,123126573.09,123.13 Mops/s,2025-10-18T09:32:51.267321,Dynamic bucket count
+20251018_093209,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,271.04,275.2,236125370.31,236.13 Mops/s,2025-10-18T09:32:09.731451,Dynamic bucket count
+20251018_093315,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,910335.16,956208.99,71991067.85,71.99 Mops/s,2025-10-18T09:33:15.417648,Dynamic bucket count
+20251018_093230,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5487.31,5608.62,186612237.63,186.61 Mops/s,2025-10-18T09:32:30.286181,Dynamic bucket count
+20251018_103152,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,126873.05,128221.96,78818944.1,78.82 Mops/s,2025-10-18T10:31:52.628661,Dynamic bucket count v2
+20251018_103112,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,895.54,913.89,71464899.57,71.46 Mops/s,2025-10-18T10:31:12.481258,Dynamic bucket count v2
+20251018_103216,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,2133107.67,2148785.37,30723249.94,30.72 Mops/s,2025-10-18T10:32:16.468433,Dynamic bucket count v2
+20251018_103131,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,11819.91,11977.92,86633513.02,86.63 Mops/s,2025-10-18T10:31:31.921836,Dynamic bucket count v2
+20251018_103142,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,82153.73,84771.15,121723022.3,121.72 Mops/s,2025-10-18T10:31:42.842517,Dynamic bucket count v2
+20251018_103103,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,278.97,282.92,229417137.9,229.42 Mops/s,2025-10-18T10:31:03.314945,Dynamic bucket count v2
+20251018_103206,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,908068.02,945497.04,72170805.02,72.17 Mops/s,2025-10-18T10:32:06.640866,Dynamic bucket count v2
+20251018_103123,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5187.55,5275.06,197395791.02,197.40 Mops/s,2025-10-18T10:31:23.399029,Dynamic bucket count v2
+20251018_160056,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,97109.65,97135.82,102976379.46,102.98 Mops/s,2025-10-18T16:00:56.897013,Hot and Cold Arenas
+20251018_160019,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,647.74,650.87,98805356.02,98.81 Mops/s,2025-10-18T16:00:19.720411,Hot and Cold Arenas
+20251018_160124,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,934216.65,951149.42,70150751.42,70.15 Mops/s,2025-10-18T16:01:24.166475,Hot and Cold Arenas
+20251018_160037,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7530.41,7640.12,135981940.42,135.98 Mops/s,2025-10-18T16:00:37.788576,Hot and Cold Arenas
+20251018_160048,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,71026.11,72271.57,140793293.16,140.79 Mops/s,2025-10-18T16:00:48.061366,Hot and Cold Arenas
+20251018_160008,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,228.1,229.94,280573829.91,280.57 Mops/s,2025-10-18T16:00:08.876511,Hot and Cold Arenas
+20251018_160110,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1415807.64,1441974.6,46288773.99,46.29 Mops/s,2025-10-18T16:01:10.344668,Hot and Cold Arenas
+20251018_160028,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,5998.84,6263.56,170699593.52,170.70 Mops/s,2025-10-18T16:00:28.394412,Hot and Cold Arenas
+20251018_170456,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,95497.52,96184.69,104714758.49,104.71 Mops/s,2025-10-18T17:04:56.664034,Returnign &V
+20251018_170419,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,642.17,645.4,99662782.28,99.66 Mops/s,2025-10-18T17:04:19.623569,Returnign &V
+20251018_170520,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,861052.54,883040.19,76111499.36,76.11 Mops/s,2025-10-18T17:05:20.410144,Returnign &V
+20251018_170437,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7495.89,7579.66,136608131.24,136.61 Mops/s,2025-10-18T17:04:37.504815,Returnign &V
+20251018_170447,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,72029.32,72967.72,138832359.42,138.83 Mops/s,2025-10-18T17:04:47.814901,Returnign &V
+20251018_170408,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,230.17,233.69,278050559.53,278.05 Mops/s,2025-10-18T17:04:08.848810,Returnign &V
+20251018_170507,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1451533.64,1471206.5,45149487.58,45.15 Mops/s,2025-10-18T17:05:07.446292,Returnign &V
+20251018_170428,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,6032.22,6062.17,169755176.52,169.76 Mops/s,2025-10-18T17:04:28.140802,Returnign &V
+20251018_181457,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,104069.11,106290.62,96089994.92,96.09 Mops/s,2025-10-18T18:14:57.757544,Bucket per size optimisations
+20251018_181418,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,643.79,658.26,99411558.26,99.41 Mops/s,2025-10-18T18:14:18.719599,Bucket per size optimisations
+20251018_181520,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,515519.18,520820.19,127126211.14,127.13 Mops/s,2025-10-18T18:15:20.768453,Bucket per size optimisations
+20251018_181438,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7640.37,7810.04,134024878.15,134.02 Mops/s,2025-10-18T18:14:38.183785,Bucket per size optimisations
+20251018_181448,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,75485.27,75492.23,132476173.89,132.48 Mops/s,2025-10-18T18:14:48.536666,Bucket per size optimisations
+20251018_181407,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,218.19,221.36,293318497.15,293.32 Mops/s,2025-10-18T18:14:07.904953,Bucket per size optimisations
+20251018_181510,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1744043.12,1792373.9,37577052.63,37.58 Mops/s,2025-10-18T18:15:10.839097,Bucket per size optimisations
+20251018_181428,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4330.31,4422.53,236472491.35,236.47 Mops/s,2025-10-18T18:14:28.693998,Bucket per size optimisations
+20251023_162131,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,121135.37,123846.26,82552272.7,82.55 Mops/s,2025-10-23T16:21:31.985288,Sanity check
+20251023_162032,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,528.56,539.42,121083975.94,121.08 Mops/s,2025-10-23T16:20:32.360880,Sanity check
+20251023_162206,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1356383.03,1384649.12,48316735.35,48.32 Mops/s,2025-10-23T16:22:06.430867,Sanity check
+20251023_162102,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,9160.62,9297.96,111782844.23,111.78 Mops/s,2025-10-23T16:21:02.690150,Sanity check
+20251023_162141,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,107163.78,108734.85,93315112.04,93.32 Mops/s,2025-10-23T16:21:41.249177,Sanity check
+20251023_162042,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,628.37,629.53,101850415.24,101.85 Mops/s,2025-10-23T16:20:42.803302,Sanity check
+20251023_162216,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,509486.58,516638.36,128631453.98,128.63 Mops/s,2025-10-23T16:22:16.097553,Sanity check
+20251023_162112,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7816.17,7979.38,131010382.57,131.01 Mops/s,2025-10-23T16:21:12.064691,Sanity check
+20251023_162122,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,71915.81,73820.05,139051482.27,139.05 Mops/s,2025-10-23T16:21:22.173333,Sanity check
+20251023_162022,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,217.96,222.58,293628895.95,293.63 Mops/s,2025-10-23T16:20:22.635737,Sanity check
+20251023_162153,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1663107.19,1709508.27,39405758.44,39.41 Mops/s,2025-10-23T16:21:53.567553,Sanity check
+20251023_162052,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4314.72,4393.29,237327159.27,237.33 Mops/s,2025-10-23T16:20:52.617744,Sanity check
+20251023_164345,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,119342.54,122884.85,83792420.34,83.79 Mops/s,2025-10-23T16:43:45.001963,Check 1 - MPH base only
+20251023_164307,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,540.21,550.8,118471701.39,118.47 Mops/s,2025-10-23T16:43:07.945115,Check 1 - MPH base only
+20251023_164407,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1380219.31,1420463.68,47482309.13,47.48 Mops/s,2025-10-23T16:44:07.729202,Check 1 - MPH base only
+20251023_164326,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8795.04,9002.3,116429287.77,116.43 Mops/s,2025-10-23T16:43:26.576992,Check 1 - MPH base only
+20251023_164354,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,31495.53,32178.11,317505411.39,317.51 Mops/s,2025-10-23T16:43:54.562514,Check 1 - MPH base only
+20251023_164316,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,201.12,203.07,318212413.06,318.21 Mops/s,2025-10-23T16:43:16.722050,Check 1 - MPH base only
+20251023_164416,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,206516.82,210138.02,317339770.03,317.34 Mops/s,2025-10-23T16:44:16.828642,Check 1 - MPH base only
+20251023_164335,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3218.5,3262.46,318160600.33,318.16 Mops/s,2025-10-23T16:43:35.330374,Check 1 - MPH base only
+20251023_165404,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,114004.51,117011.73,87715831.57,87.72 Mops/s,2025-10-23T16:54:04.212911,Check 2 - MPH all
+20251023_165323,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,527.49,538.74,121330401.09,121.33 Mops/s,2025-10-23T16:53:23.498745,Check 2 - MPH all
+20251023_165426,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1398641.98,1404420.36,46856880.36,46.86 Mops/s,2025-10-23T16:54:26.320812,Check 2 - MPH all
+20251023_165344,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8905.57,9166.56,114984166.38,114.98 Mops/s,2025-10-23T16:53:44.095896,Check 2 - MPH all
+20251023_165413,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,52229.38,53283.69,191463131.36,191.46 Mops/s,2025-10-23T16:54:13.159369,Check 2 - MPH all
+20251023_165333,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,299.71,306.07,213540413.8,213.54 Mops/s,2025-10-23T16:53:33.983078,Check 2 - MPH all
+20251023_165438,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,355568.62,366727.71,184313229.23,184.31 Mops/s,2025-10-23T16:54:38.084404,Check 2 - MPH all
+20251023_165354,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,5060.12,5137.6,202366804.06,202.37 Mops/s,2025-10-23T16:53:54.845623,Check 2 - MPH all
+20251023_183649,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,118341.54,120838.04,84501181.6,84.50 Mops/s,2025-10-23T18:36:49.953004,Check 3 - back to baselines
+20251023_183612,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,522.51,529.32,122485385.09,122.49 Mops/s,2025-10-23T18:36:12.463418,Check 3 - back to baselines
+20251023_183712,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1361737.13,1398889.11,48126762.79,48.13 Mops/s,2025-10-23T18:37:12.535524,Check 3 - back to baselines
+20251023_183631,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8958.51,9170.34,114304708.21,114.30 Mops/s,2025-10-23T18:36:31.328488,Check 3 - back to baselines
+20251023_183659,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,31139.99,31500.55,321130453.37,321.13 Mops/s,2025-10-23T18:36:59.601857,Check 3 - back to baselines
+20251023_183621,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,202.11,205.85,316660619.02,316.66 Mops/s,2025-10-23T18:36:21.204020,Check 3 - back to baselines
+20251023_183721,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,204484.92,206045.07,320493063.62,320.49 Mops/s,2025-10-23T18:37:21.582639,Check 3 - back to baselines
+20251023_183640,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3220.73,3269.51,317940762.26,317.94 Mops/s,2025-10-23T18:36:40.103760,Check 3 - back to baselines
+20251023_195935,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,115731.09,118128.87,86407206.48,86.41 Mops/s,2025-10-23T19:59:35.098240,Immutable MPH Index
+20251023_195857,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,523.33,532.21,122293167.61,122.29 Mops/s,2025-10-23T19:58:57.953524,Immutable MPH Index
+20251023_195957,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1326235.81,1365077.96,49415043.37,49.42 Mops/s,2025-10-23T19:59:57.406428,Immutable MPH Index
+20251023_195916,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8817.75,8961.93,116129450.66,116.13 Mops/s,2025-10-23T19:59:16.758358,Immutable MPH Index
+20251023_195944,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,31252.13,31542.7,319978195.03,319.98 Mops/s,2025-10-23T19:59:44.671925,Immutable MPH Index
+20251023_195906,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,200.28,202.02,319545348.31,319.55 Mops/s,2025-10-23T19:59:06.680547,Immutable MPH Index
+20251023_200006,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,205803.19,208659.52,318440161.3,318.44 Mops/s,2025-10-23T20:00:06.515220,Immutable MPH Index
+20251023_195925,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3218.78,3251.61,318132976.19,318.13 Mops/s,2025-10-23T19:59:25.501350,Immutable MPH Index
+20251023_202856,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,111926.28,114150.94,89344523.84,89.34 Mops/s,2025-10-23T20:28:56.858241,Hoisting
+20251023_202820,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,521.63,530.74,122691345.57,122.69 Mops/s,2025-10-23T20:28:20.495391,Hoisting
+20251023_202918,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1366743.26,1368121.89,47950483.27,47.95 Mops/s,2025-10-23T20:29:18.887420,Hoisting
+20251023_202838,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8270.65,8416.63,123811251.85,123.81 Mops/s,2025-10-23T20:28:38.899149,Hoisting
+20251023_202906,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,29665.36,30197.5,337093530.12,337.09 Mops/s,2025-10-23T20:29:06.235270,Hoisting
+20251023_202829,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,190.94,193.65,335179096.09,335.18 Mops/s,2025-10-23T20:28:29.093519,Hoisting
+20251023_202927,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,195889.93,199336.97,334555233.23,334.56 Mops/s,2025-10-23T20:29:27.557602,Hoisting
+20251023_202847,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3073.43,3139.3,333178148.24,333.18 Mops/s,2025-10-23T20:28:47.521846,Hoisting
+20251023_204142,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78357.94,80151.67,127619489.25,127.62 Mops/s,2025-10-23T20:41:42.216704,Hoisting + Refs
+20251023_204104,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,427.21,434.61,149808609.32,149.81 Mops/s,2025-10-23T20:41:04.970327,Hoisting + Refs
+20251023_204203,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1191375.42,1208846.33,55008689.07,55.01 Mops/s,2025-10-23T20:42:03.113935,Hoisting + Refs
+20251023_204122,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,7025.37,7123.06,145757394.49,145.76 Mops/s,2025-10-23T20:41:22.658716,Hoisting + Refs
+20251023_204151,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,29599.98,30000.85,337838054.21,337.84 Mops/s,2025-10-23T20:41:51.578395,Hoisting + Refs
+20251023_204113,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,190.12,193.0,336625203.4,336.63 Mops/s,2025-10-23T20:41:13.577291,Hoisting + Refs
+20251023_204211,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,195840.88,198464.46,334639013.49,334.64 Mops/s,2025-10-23T20:42:11.777024,Hoisting + Refs
+20251023_204131,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3056.39,3109.69,335035738.5,335.04 Mops/s,2025-10-23T20:41:31.257463,Hoisting + Refs
+20251024_114432,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78000.89,79073.93,128203672.61,128.20 Mops/s,2025-10-24T11:44:32.990833,Hash only on gets
+20251024_114412,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,403.93,410.08,158444913.97,158.44 Mops/s,2025-10-24T11:44:12.988639,Hash only on gets
+20251024_114444,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1177541.2,1204353.27,55654952.98,55.65 Mops/s,2025-10-24T11:44:44.506140,Hash only on gets
+20251024_114422,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,7198.67,7374.55,142248596.26,142.25 Mops/s,2025-10-24T11:44:22.184533,Hash only on gets
+20251025_170154,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78320.95,79919.25,127679763.04,127.68 Mops/s,2025-10-25T17:01:54.119860,MPH final
+20251025_170244,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,411.97,424.24,155349439.02,155.35 Mops/s,2025-10-25T17:02:44.431229,MPH final
+20251025_165948,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1208117.29,1245943.37,54246388.66,54.25 Mops/s,2025-10-25T16:59:48.998913,MPH final
+20251025_170302,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,7001.53,7112.07,146253679.34,146.25 Mops/s,2025-10-25T17:03:02.187913,MPH final
+20251025_170204,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,33606.03,34218.96,297565646.1,297.57 Mops/s,2025-10-25T17:02:04.082801,MPH final
+20251025_170253,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,191.37,195.04,334432961.51,334.43 Mops/s,2025-10-25T17:02:53.063684,MPH final
+20251025_165957,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,195971.27,198965.04,334416361.72,334.42 Mops/s,2025-10-25T16:59:57.649310,MPH final
+20251025_170143,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,3462.48,3518.73,295741432.2,295.74 Mops/s,2025-10-25T17:01:43.305346,MPH final
+20251026_123430,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,118046.81,120490.04,84712159.67,84.71 Mops/s,2025-10-26T12:34:30.497040,Terrifying Radix Refactor
+20251026_123349,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,679.78,689.56,94148199.41,94.15 Mops/s,2025-10-26T12:33:49.598245,Terrifying Radix Refactor
+20251026_123454,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,1078411.86,1069071.11,60770845.2,60.77 Mops/s,2025-10-26T12:34:54.387794,Terrifying Radix Refactor
+20251026_123410,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,10470.83,10622.17,97795478.65,97.80 Mops/s,2025-10-26T12:34:10.694777,Terrifying Radix Refactor
+20251026_123640,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,116688.89,119626.47,85697961.2,85.70 Mops/s,2025-10-26T12:36:40.367532,Terrifying Radix Refactor
+20251026_123620,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,547.3,554.54,116937685.2,116.94 Mops/s,2025-10-26T12:36:20.600361,Terrifying Radix Refactor
+20251026_123652,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1542864.7,1594565.82,42476828.9,42.48 Mops/s,2025-10-26T12:36:52.036885,Terrifying Radix Refactor
+20251026_123630,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,8760.92,8903.22,116882667.41,116.88 Mops/s,2025-10-26T12:36:30.652054,Terrifying Radix Refactor
+20251025_190925,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,1424674.03,1755268.27,7019149.48,7.02 Mops/s,2025-10-25T19:09:25.158772,Terrifying Radix Refactor
+20251025_192339,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,14699.91,16901.62,4353767.3,4.35 Mops/s,2025-10-25T19:23:39.281753,Terrifying Radix Refactor
+20251025_190937,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,17516576.33,22578446.24,3741370.39,3.74 Mops/s,2025-10-25T19:09:37.872972,Terrifying Radix Refactor
+20251025_190911,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,140917.63,159421.72,7266656.52,7.27 Mops/s,2025-10-25T19:09:11.961598,Terrifying Radix Refactor
+20251026_124244,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,128989.45,129144.25,77525719.38,77.53 Mops/s,2025-10-26T12:42:44.642169,Terrifying Radix Refactor - 4 slot target
+20251026_124205,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,598.45,607.53,106942504.8,106.94 Mops/s,2025-10-26T12:42:05.676306,Terrifying Radix Refactor - 4 slot target
+20251026_124310,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,1328037.16,1348080.17,49348016.83,49.35 Mops/s,2025-10-26T12:43:10.125531,Terrifying Radix Refactor - 4 slot target
+20251026_124225,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,10114.48,10163.5,101240943.84,101.24 Mops/s,2025-10-26T12:42:25.700587,Terrifying Radix Refactor - 4 slot target
+20251026_124234,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,99937.13,102671.05,100062911.85,100.06 Mops/s,2025-10-26T12:42:34.593362,Terrifying Radix Refactor - 4 slot target
+20251026_124155,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,457.45,465.06,139905294.47,139.91 Mops/s,2025-10-26T12:41:55.200684,Terrifying Radix Refactor - 4 slot target
+20251026_124257,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1319629.54,1361815.22,49662422.5,49.66 Mops/s,2025-10-26T12:42:57.564878,Terrifying Radix Refactor - 4 slot target
+20251026_124215,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,7406.74,7589.83,138252547.53,138.25 Mops/s,2025-10-26T12:42:15.005356,Terrifying Radix Refactor - 4 slot target
+20251026_181249,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,91713.74,94918.41,109034913.63,109.03 Mops/s,2025-10-26T18:12:49.389833,Baseline Radix
+20251026_181211,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,511.06,517.13,125229267.63,125.23 Mops/s,2025-10-26T18:12:11.194926,Baseline Radix
+20251026_181314,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,957393.5,967836.06,68452522.7,68.45 Mops/s,2025-10-26T18:13:14.955353,Baseline Radix
+20251026_181231,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7795.28,7937.34,131361612.74,131.36 Mops/s,2025-10-26T18:12:31.148732,Baseline Radix
+20251026_181240,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,115126.24,118890.04,86861167.43,86.86 Mops/s,2025-10-26T18:12:40.656945,Baseline Radix
+20251026_181201,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,552.28,560.92,115882877.67,115.88 Mops/s,2025-10-26T18:12:01.519741,Baseline Radix
+20251026_181300,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1558356.05,1572244.51,42054574.24,42.05 Mops/s,2025-10-26T18:13:00.849809,Baseline Radix
+20251026_181221,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,9436.35,9626.78,108516501.59,108.52 Mops/s,2025-10-26T18:12:21.625797,Baseline Radix
+20251026_184503,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,96085.09,97511.88,104074424.45,104.07 Mops/s,2025-10-26T18:45:03.206835,TinyMap iterations and structure
+20251026_184424,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,497.55,507.31,128629170.12,128.63 Mops/s,2025-10-26T18:44:24.649314,TinyMap iterations and structure
+20251026_184523,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,991480.46,1004436.14,66099134.33,66.10 Mops/s,2025-10-26T18:45:23.964489,TinyMap iterations and structure
+20251026_184444,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,7787.08,7927.01,131499836.41,131.50 Mops/s,2025-10-26T18:44:44.233961,TinyMap iterations and structure
+20251026_184454,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,69145.33,71914.79,144622930.07,144.62 Mops/s,2025-10-26T18:44:54.283603,TinyMap iterations and structure
+20251026_184415,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,265.87,270.27,240723427.25,240.72 Mops/s,2025-10-26T18:44:15.065939,TinyMap iterations and structure
+20251026_184514,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1509570.97,1544384.43,43413659.31,43.41 Mops/s,2025-10-26T18:45:14.533100,TinyMap iterations and structure
+20251026_184434,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4364.62,4461.93,234613927.71,234.61 Mops/s,2025-10-26T18:44:34.670786,TinyMap iterations and structure
+20251026_211853,compare_get_16b,dashmap_iter_all/64,dashmap_iter_all,64,9759.42,9905.72,6557767.76,6.56 Mops/s,2025-10-26T21:18:53.570536,TinyMap final?
+20251026_211751,compare_get_16b,hashmap_get/64,hashmap_get,64,514.84,525.46,124309749.84,124.31 Mops/s,2025-10-26T21:17:51.202269,TinyMap final?
+20251026_211832,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,350.69,357.79,182495753.06,182.50 Mops/s,2025-10-26T21:18:32.841651,TinyMap final?
+20251026_210904,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,123120.39,121217.87,81221312.06,81.22 Mops/s,2025-10-26T21:09:04.158982,TinyMap final?
+20251026_211913,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,51.49,52.29,1242893907.44,1.24 Gops/s,2025-10-26T21:19:13.220638,TinyMap final?
+20251026_210925,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,1043182.58,1071774.57,62823135.09,62.82 Mops/s,2025-10-26T21:09:25.548932,TinyMap final?
+20251026_210844,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,8634.11,8742.46,118599392.78,118.60 Mops/s,2025-10-26T21:08:44.835163,TinyMap final?
+20251026_211843,compare_get_16b,hashmap_iter_all/64,hashmap_iter_all,64,294.92,299.56,217008608.47,217.01 Mops/s,2025-10-26T21:18:43.154372,TinyMap final?
+20251026_211801,compare_get_16b,dashmap_get/64,dashmap_get,64,615.87,635.47,103918140.73,103.92 Mops/s,2025-10-26T21:18:01.651500,TinyMap final?
+20251026_211904,compare_get_16b,btree_iter_all/64,btree_iter_all,64,43.13,43.66,1483931374.54,1.48 Gops/s,2025-10-26T21:19:04.544724,TinyMap final?
+20251026_211922,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,7.9,8.14,8103465396.71,8.10 Gops/s,2025-10-26T21:19:22.881073,TinyMap final?
+20251026_210854,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,68874.09,70136.64,145192486.73,145.19 Mops/s,2025-10-26T21:08:54.816349,TinyMap final?
+20251026_211821,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,264.16,270.47,242281834.52,242.28 Mops/s,2025-10-26T21:18:21.493687,TinyMap final?
+20251026_210915,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1534287.48,1552728.78,42714289.81,42.71 Mops/s,2025-10-26T21:09:15.457356,TinyMap final?
+20251026_211047,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4300.76,4365.32,238097389.4,238.10 Mops/s,2025-10-26T21:10:47.548367,TinyMap final?
+20251026_211811,compare_get_16b,btree_get/64,btree_get,64,569.76,582.32,112327486.52,112.33 Mops/s,2025-10-26T21:18:11.753162,TinyMap final?
+20251028_150218,compare_get_16b,dashmap_iter_all/10000,dashmap_iter_all,10000,362347.09,369093.67,27597847.96,27.60 Mops/s,2025-10-28T15:02:18.948195,WHERE WE AT YO
+20251028_145904,compare_get_16b,dashmap_iter_all/64,dashmap_iter_all,64,10724.3,10943.73,5967757.8,5.97 Mops/s,2025-10-28T14:59:04.602844,WHERE WE AT YO
+20251028_150410,compare_get_16b,dashmap_iter_all/65536,dashmap_iter_all,65536,2455700.0,2502816.44,26687298.94,26.69 Mops/s,2025-10-28T15:04:10.854383,WHERE WE AT YO
+20251028_150042,compare_get_16b,dashmap_iter_all/1024,dashmap_iter_all,1024,30284.02,30724.35,33813213.62,33.81 Mops/s,2025-10-28T15:00:42.445258,WHERE WE AT YO
+20251028_150120,compare_get_16b,hashmap_get/10000,hashmap_get,10000,87543.43,90011.71,114229015.78,114.23 Mops/s,2025-10-28T15:01:20.958181,WHERE WE AT YO
+20251028_145804,compare_get_16b,hashmap_get/64,hashmap_get,64,524.53,527.22,122013427.37,122.01 Mops/s,2025-10-28T14:58:04.012375,WHERE WE AT YO
+20251028_150302,compare_get_16b,hashmap_get/65536,hashmap_get,65536,678637.23,690933.96,96570003.97,96.57 Mops/s,2025-10-28T15:03:02.172128,WHERE WE AT YO
+20251028_145943,compare_get_16b,hashmap_get/1024,hashmap_get,1024,8390.9,8513.23,122036959.95,122.04 Mops/s,2025-10-28T14:59:43.279162,WHERE WE AT YO
+20251028_150200,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78539.36,80934.41,127324687.23,127.32 Mops/s,2025-10-28T15:02:00.919525,WHERE WE AT YO
+20251028_145843,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,386.77,393.66,165473934.15,165.47 Mops/s,2025-10-28T14:58:43.405748,WHERE WE AT YO
+20251028_150347,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1210934.74,1260518.83,54120175.03,54.12 Mops/s,2025-10-28T15:03:47.972143,WHERE WE AT YO
+20251028_150022,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6816.12,6906.82,150232089.79,150.23 Mops/s,2025-10-28T15:00:22.311952,WHERE WE AT YO
+20251028_150239,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,10409.2,10565.15,960688234.23,960.69 Mops/s,2025-10-28T15:02:39.073828,WHERE WE AT YO
+20251028_145924,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,52.29,52.74,1224010501.46,1.22 Gops/s,2025-10-28T14:59:24.705326,WHERE WE AT YO
+20251028_150429,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,95003.17,95893.36,689829596.34,689.83 Mops/s,2025-10-28T15:04:29.442635,WHERE WE AT YO
+20251028_150059,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,833.79,834.71,1228131805.82,1.23 Gops/s,2025-10-28T15:00:59.499203,WHERE WE AT YO
+20251028_150210,compare_get_16b,hashmap_iter_all/10000,hashmap_iter_all,10000,113096.74,114538.62,88419879.98,88.42 Mops/s,2025-10-28T15:02:10.170294,WHERE WE AT YO
+20251028_145853,compare_get_16b,hashmap_iter_all/64,hashmap_iter_all,64,284.5,290.96,224952525.83,224.95 Mops/s,2025-10-28T14:58:53.547055,WHERE WE AT YO
+20251028_150400,compare_get_16b,hashmap_iter_all/65536,hashmap_iter_all,65536,1303076.45,1332592.01,50293288.47,50.29 Mops/s,2025-10-28T15:04:00.558296,WHERE WE AT YO
+20251028_150033,compare_get_16b,hashmap_iter_all/1024,hashmap_iter_all,1024,5090.14,5141.52,201173391.21,201.17 Mops/s,2025-10-28T15:00:33.083527,WHERE WE AT YO
+20251028_150129,compare_get_16b,dashmap_get/10000,dashmap_get,10000,110783.61,113063.68,90266058.32,90.27 Mops/s,2025-10-28T15:01:29.980168,WHERE WE AT YO
+20251028_145814,compare_get_16b,dashmap_get/64,dashmap_get,64,619.04,633.36,103386258.58,103.39 Mops/s,2025-10-28T14:58:14.623767,WHERE WE AT YO
+20251028_150314,compare_get_16b,dashmap_get/65536,dashmap_get,65536,846587.94,878652.85,77411922.58,77.41 Mops/s,2025-10-28T15:03:14.745380,WHERE WE AT YO
+20251028_145953,compare_get_16b,dashmap_get/1024,dashmap_get,1024,9941.45,10082.43,103003099.12,103.00 Mops/s,2025-10-28T14:59:53.775087,WHERE WE AT YO
+20251028_150228,compare_get_16b,btree_iter_all/10000,btree_iter_all,10000,15546.73,15946.6,643222281.3,643.22 Mops/s,2025-10-28T15:02:28.320721,WHERE WE AT YO
+20251028_145915,compare_get_16b,btree_iter_all/64,btree_iter_all,64,43.98,44.39,1455219610.19,1.46 Gops/s,2025-10-28T14:59:15.852313,WHERE WE AT YO
+20251028_150420,compare_get_16b,btree_iter_all/65536,btree_iter_all,65536,140648.75,145114.64,465955095.73,465.96 Mops/s,2025-10-28T15:04:20.735085,WHERE WE AT YO
+20251028_150050,compare_get_16b,btree_iter_all/1024,btree_iter_all,1024,749.0,757.0,1367157778.37,1.37 Gops/s,2025-10-28T15:00:50.799541,WHERE WE AT YO
+20251028_150249,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,279.04,280.66,35837527601.97,35.84 Gops/s,2025-10-28T15:02:49.128438,WHERE WE AT YO
+20251028_145933,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,6.22,6.26,10289347290.53,10.29 Gops/s,2025-10-28T14:59:33.403179,WHERE WE AT YO
+20251028_150439,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,8241.87,8331.38,7951597667.15,7.95 Gops/s,2025-10-28T15:04:39.162962,WHERE WE AT YO
+20251028_150109,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,131.93,134.11,7761983997.25,7.76 Gops/s,2025-10-28T15:01:09.357251,WHERE WE AT YO
+20251028_150150,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,68147.35,69319.34,146740856.53,146.74 Mops/s,2025-10-28T15:01:50.131142,WHERE WE AT YO
+20251028_145834,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,276.62,280.39,231368407.61,231.37 Mops/s,2025-10-28T14:58:34.810725,WHERE WE AT YO
+20251028_150336,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1558491.33,1567567.53,42050923.78,42.05 Mops/s,2025-10-28T15:03:36.359281,WHERE WE AT YO
+20251028_150013,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4370.42,4440.44,234302190.9,234.30 Mops/s,2025-10-28T15:00:13.320571,WHERE WE AT YO
+20251028_150140,compare_get_16b,btree_get/10000,btree_get,10000,428035.45,431244.6,23362550.87,23.36 Mops/s,2025-10-28T15:01:40.104796,WHERE WE AT YO
+20251028_145824,compare_get_16b,btree_get/64,btree_get,64,559.99,568.63,114288724.71,114.29 Mops/s,2025-10-28T14:58:24.751015,WHERE WE AT YO
+20251028_150325,compare_get_16b,btree_get/65536,btree_get,65536,4656577.64,4781281.13,14073855.33,14.07 Mops/s,2025-10-28T15:03:25.011515,WHERE WE AT YO
+20251028_150003,compare_get_16b,btree_get/1024,btree_get,1024,16691.75,16920.14,61347668.09,61.35 Mops/s,2025-10-28T15:00:03.456257,WHERE WE AT YO
+20251028_153337,compare_get_16b,hashmap_get/64,hashmap_get,64,524.61,533.52,121994459.46,121.99 Mops/s,2025-10-28T15:33:37.839443,Finalised!!
+20251028_165636,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78672.04,80271.75,127109958.63,127.11 Mops/s,2025-10-28T16:56:36.820528,Finalised!!
+20251028_165517,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,445.54,452.38,143646717.57,143.65 Mops/s,2025-10-28T16:55:17.028306,Finalised!!
+20251028_165722,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1232205.44,1245297.31,53185936.28,53.19 Mops/s,2025-10-28T16:57:22.111978,Finalised!!
+20251028_165556,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6771.01,6894.07,151233039.55,151.23 Mops/s,2025-10-28T16:55:56.076883,Finalised!!
+20251028_165647,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,10685.48,10627.39,935849400.14,935.85 Mops/s,2025-10-28T16:56:47.671795,Finalised!!
+20251028_165525,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,50.26,50.93,1273477813.17,1.27 Gops/s,2025-10-28T16:55:25.789762,Finalised!!
+20251028_165730,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,94485.21,95544.45,693611228.81,693.61 Mops/s,2025-10-28T16:57:30.953621,Finalised!!
+20251028_165604,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,811.78,824.53,1261418805.17,1.26 Gops/s,2025-10-28T16:56:04.888554,Finalised!!
+20251028_153348,compare_get_16b,dashmap_get/64,dashmap_get,64,617.18,624.84,103697930.67,103.70 Mops/s,2025-10-28T15:33:48.413490,Finalised!!
+20251028_165858,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,339.82,346.16,29427416157.87,29.43 Gops/s,2025-10-28T16:58:58.367494,Finalised!!
+20251028_165837,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,10.2,10.37,6274070214.17,6.27 Gops/s,2025-10-28T16:58:37.374234,Finalised!!
+20251028_165908,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,8366.04,8511.91,7833573082.66,7.83 Gops/s,2025-10-28T16:59:08.299645,Finalised!!
+20251028_165847,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,132.5,134.2,7728201206.32,7.73 Gops/s,2025-10-28T16:58:47.246295,Finalised!!
+20251028_165625,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,75106.16,76996.49,133144872.51,133.14 Mops/s,2025-10-28T16:56:25.890170,Finalised!!
+20251028_165507,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,269.07,274.14,237858521.46,237.86 Mops/s,2025-10-28T16:55:07.878363,Finalised!!
+20251028_165710,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1526456.12,1562394.0,42933431.92,42.93 Mops/s,2025-10-28T16:57:10.325697,Finalised!!
+20251028_165547,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4529.73,4599.43,226061884.13,226.06 Mops/s,2025-10-28T16:55:47.107473,Finalised!!
+20251029_153602,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,7655.2,7817.21,1306301675.54,1.31 Gops/s,2025-10-29T15:36:02.339903,Active buckets using Arc framework
+20251029_153523,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,35.99,37.06,1778056056.23,1.78 Gops/s,2025-10-29T15:35:23.349876,Active buckets using Arc framework
+20251029_153621,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,49860.63,51401.59,1314383583.8,1.31 Gops/s,2025-10-29T15:36:21.319978,Active buckets using Arc framework
+20251029_153543,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,530.5,538.54,1930249913.72,1.93 Gops/s,2025-10-29T15:35:43.137067,Active buckets using Arc framework
+20251029_153612,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,288.28,293.88,34688391879.66,34.69 Gops/s,2025-10-29T15:36:12.611270,Active buckets using Arc framework
+20251029_153533,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,8.39,8.55,7629380989.05,7.63 Gops/s,2025-10-29T15:35:33.265779,Active buckets using Arc framework
+20251029_153631,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,8202.89,8369.12,7989382136.28,7.99 Gops/s,2025-10-29T15:36:31.096163,Active buckets using Arc framework
+20251029_153552,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,129.17,132.64,7927761541.29,7.93 Gops/s,2025-10-29T15:35:52.900920,Active buckets using Arc framework
+20251029_144647,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,4635698.82,4839448.7,2157172.07,2.16 Mops/s,2025-10-29T14:46:47.154767,Active buckets using Arc framework
+20251029_144625,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,25588.89,25573.62,2501085.28,2.50 Mops/s,2025-10-29T14:46:25.239410,Active buckets using Arc framework
+20251029_144655,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,23870875.25,25283637.93,2745437.66,2.75 Mops/s,2025-10-29T14:46:55.770185,Active buckets using Arc framework
+20251029_144636,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,284301.35,292050.84,3601811.96,3.60 Mops/s,2025-10-29T14:46:36.525877,Active buckets using Arc framework
+20251029_170804,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78335.3,82341.98,127656365.9,127.66 Mops/s,2025-10-29T17:08:04.017735,MPH/Bloom using Arc
+20251029_170644,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,436.35,441.62,146670227.63,146.67 Mops/s,2025-10-29T17:06:44.511752,MPH/Bloom using Arc
+20251029_170846,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1279905.92,1278549.56,51203763.5,51.20 Mops/s,2025-10-29T17:08:46.711802,MPH/Bloom using Arc
+20251029_170723,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6827.76,7055.28,149976018.66,149.98 Mops/s,2025-10-29T17:07:23.212083,MPH/Bloom using Arc
+20251029_170813,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,7943.38,8074.26,1258910345.44,1.26 Gops/s,2025-10-29T17:08:13.441198,MPH/Bloom using Arc
+20251029_170654,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,35.54,36.08,1800748139.38,1.80 Gops/s,2025-10-29T17:06:54.540024,MPH/Bloom using Arc
+20251029_170855,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,47984.23,49332.94,1365782054.92,1.37 Gops/s,2025-10-29T17:08:55.254463,MPH/Bloom using Arc
+20251029_170732,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,532.89,543.04,1921614673.8,1.92 Gops/s,2025-10-29T17:07:32.944102,MPH/Bloom using Arc
+20251029_170823,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,316.91,319.37,31555139887.06,31.56 Gops/s,2025-10-29T17:08:23.987000,MPH/Bloom using Arc
+20251029_170704,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,7.78,7.95,8222106875.15,8.22 Gops/s,2025-10-29T17:07:04.141040,MPH/Bloom using Arc
+20251029_170904,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,8305.32,8436.98,7890850174.06,7.89 Gops/s,2025-10-29T17:09:04.855154,MPH/Bloom using Arc
+20251029_170742,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,131.28,135.67,7800072934.49,7.80 Gops/s,2025-10-29T17:07:42.774020,MPH/Bloom using Arc
+20251029_170753,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,72171.85,73721.13,138558176.8,138.56 Mops/s,2025-10-29T17:07:53.224080,MPH/Bloom using Arc
+20251029_170635,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,269.96,274.52,237074687.24,237.07 Mops/s,2025-10-29T17:06:35.617490,MPH/Bloom using Arc
+20251029_170834,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1430077.92,1457334.51,45826873.42,45.83 Mops/s,2025-10-29T17:08:34.762853,MPH/Bloom using Arc
+20251029_170714,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4591.35,4661.83,223028097.48,223.03 Mops/s,2025-10-29T17:07:14.383724,MPH/Bloom using Arc
+20251029_165205,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,7866.66,8118.27,1271187177.61,1.27 Gops/s,2025-10-29T16:52:05.858964,MPH/Bloom using Arc
+20251029_165146,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,417.09,423.95,153444119.33,153.44 Mops/s,2025-10-29T16:51:46.027048,MPH/Bloom using Arc
+20251029_165157,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,987.2,1004.56,1037274568.51,1.04 Gops/s,2025-10-29T16:51:57.269351,MPH/Bloom using Arc
+20251029_172139,compare_get_16b,optidx_standard_delta_heavy_get/10000,optidx_standard_delta_heavy_get,10000,335646.66,341341.87,29793235.2,29.79 Mops/s,2025-10-29T17:21:39.843897,Adding get benches
+20251029_172058,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,985.88,1005.48,64916607.72,64.92 Mops/s,2025-10-29T17:20:58.484330,Adding get benches
+20251029_172158,compare_get_16b,optidx_standard_delta_heavy_get/65536,optidx_standard_delta_heavy_get,65536,2978248.76,3043364.61,22004877.76,22.00 Mops/s,2025-10-29T17:21:58.194736,Adding get benches
+20251029_172117,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,18557.82,18763.32,55178900.39,55.18 Mops/s,2025-10-29T17:21:17.130909,Adding get benches
+20251029_172128,compare_get_16b,optidx_standard_mph_heavy_get/10000,optidx_standard_mph_heavy_get,10000,302416.62,308729.34,33066965.44,33.07 Mops/s,2025-10-29T17:21:28.767107,Adding get benches
+20251029_172049,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,1066.64,1084.85,60001348.24,60.00 Mops/s,2025-10-29T17:20:49.047031,Adding get benches
+20251029_172149,compare_get_16b,optidx_standard_mph_heavy_get/65536,optidx_standard_mph_heavy_get,65536,2142326.09,2221926.94,30591047.93,30.59 Mops/s,2025-10-29T17:21:49.734325,Adding get benches
+20251029_172106,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,24115.21,24816.15,42462832.78,42.46 Mops/s,2025-10-29T17:21:06.963169,Adding get benches
+20251030_122010,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,746066.89,762321.58,13403623.94,13.40 Mops/s,2025-10-30T12:20:10.180317,Adding insert benches
+20251030_122206,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,4974.25,5059.91,12866269.21,12.87 Mops/s,2025-10-30T12:22:06.530978,Adding insert benches
+20251029_192739,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,6449273.5,6832345.48,10161764.73,10.16 Mops/s,2025-10-29T19:27:39.799988,Adding insert benches
+20251030_121928,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,55615.33,56983.01,18412191.03,18.41 Mops/s,2025-10-30T12:19:28.622007,Adding insert benches
+20251031_140157,compare_insert_16b,dashmap_insert/10000,dashmap_insert,10000,159458.72,159950.63,62712156.59,62.71 Mops/s,2025-10-31T14:01:57.103422,Benchmark with stardard structures
+20251031_140039,compare_insert_16b,dashmap_insert/64,dashmap_insert,64,1487.9,1493.22,43013713.8,43.01 Mops/s,2025-10-31T14:00:39.571378,Benchmark with stardard structures
+20251031_140244,compare_insert_16b,dashmap_insert/65536,dashmap_insert,65536,1391151.39,1382317.52,47109179.07,47.11 Mops/s,2025-10-31T14:02:44.351401,Benchmark with stardard structures
+20251031_140116,compare_insert_16b,dashmap_insert/1024,dashmap_insert,1024,14748.55,14964.37,69430536.22,69.43 Mops/s,2025-10-31T14:01:16.497106,Benchmark with stardard structures
+20251031_140219,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,27343979.25,27791258.13,365711.22,365.71 Kops/s,2025-10-31T14:02:19.049157,Benchmark with stardard structures
+20251031_140056,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,5528.62,5685.2,11576126.68,11.58 Mops/s,2025-10-31T14:00:56.202419,Benchmark with stardard structures
+20251031_140307,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,86159750.0,86534998.79,760633.59,760.63 Kops/s,2025-10-31T14:03:07.749307,Benchmark with stardard structures
+20251031_140136,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,83468.36,83818.02,12268122.03,12.27 Mops/s,2025-10-31T14:01:36.910439,Benchmark with stardard structures
+20251031_140145,compare_insert_16b,hashmap_insert/10000,hashmap_insert,10000,209564.84,210516.94,47717928.86,47.72 Mops/s,2025-10-31T14:01:45.895522,Benchmark with stardard structures
+20251031_140029,compare_insert_16b,hashmap_insert/64,hashmap_insert,64,1346.92,1356.16,47515873.55,47.52 Mops/s,2025-10-31T14:00:29.958600,Benchmark with stardard structures
+20251031_140231,compare_insert_16b,hashmap_insert/65536,hashmap_insert,65536,1669400.96,1667954.59,39257195.69,39.26 Mops/s,2025-10-31T14:02:31.189838,Benchmark with stardard structures
+20251031_140107,compare_insert_16b,hashmap_insert/1024,hashmap_insert,1024,21046.29,21248.46,48654648.58,48.65 Mops/s,2025-10-31T14:01:07.092331,Benchmark with stardard structures
+20251031_140209,compare_insert_16b,btree_insert/10000,btree_insert,10000,677089.34,678561.37,14769099.86,14.77 Mops/s,2025-10-31T14:02:09.783375,Benchmark with stardard structures
+20251031_140047,compare_insert_16b,btree_insert/64,btree_insert,64,1438.87,1443.49,44479366.99,44.48 Mops/s,2025-10-31T14:00:47.848017,Benchmark with stardard structures
+20251031_140253,compare_insert_16b,btree_insert/65536,btree_insert,65536,6827549.56,6839106.31,9598758.59,9.60 Mops/s,2025-10-31T14:02:53.495987,Benchmark with stardard structures
+20251031_140125,compare_insert_16b,btree_insert/1024,btree_insert,1024,32177.85,32287.5,31823137.11,31.82 Mops/s,2025-10-31T14:01:25.982300,Benchmark with stardard structures
+20251031_142627,compare_insert_16b,dashmap_insert/10000,dashmap_insert,10000,136014.03,139802.79,73521824.62,73.52 Mops/s,2025-10-31T14:26:27.736804,Refactored Bench approach
+20251031_142508,compare_insert_16b,dashmap_insert/64,dashmap_insert,64,704.97,714.67,90784468.65,90.78 Mops/s,2025-10-31T14:25:08.325226,Refactored Bench approach
+20251031_142713,compare_insert_16b,dashmap_insert/65536,dashmap_insert,65536,1038185.93,1096751.14,63125493.99,63.13 Mops/s,2025-10-31T14:27:13.458568,Refactored Bench approach
+20251031_142547,compare_insert_16b,dashmap_insert/1024,dashmap_insert,1024,11563.47,11717.26,88554714.77,88.55 Mops/s,2025-10-31T14:25:47.452908,Refactored Bench approach
+20251031_142649,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,15444861.17,15867405.82,647464.54,647.46 Kops/s,2025-10-31T14:26:49.088519,Refactored Bench approach
+20251031_142528,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,3953.44,4007.98,16188414.55,16.19 Mops/s,2025-10-31T14:25:28.488113,Refactored Bench approach
+20251031_142739,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,45692416.5,47071013.97,1434286.15,1.43 Mops/s,2025-10-31T14:27:39.113883,Refactored Bench approach
+20251031_142607,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,70671.26,71816.09,14489623.94,14.49 Mops/s,2025-10-31T14:26:07.888011,Refactored Bench approach
+20251031_142617,compare_insert_16b,hashmap_insert/10000,hashmap_insert,10000,105850.39,107832.95,94472966.9,94.47 Mops/s,2025-10-31T14:26:17.229669,Refactored Bench approach
+20251031_142459,compare_insert_16b,hashmap_insert/64,hashmap_insert,64,596.44,607.43,107303926.06,107.30 Mops/s,2025-10-31T14:24:59.969021,Refactored Bench approach
+20251031_142703,compare_insert_16b,hashmap_insert/65536,hashmap_insert,65536,924880.12,941595.53,70858913.09,70.86 Mops/s,2025-10-31T14:27:03.140076,Refactored Bench approach
+20251031_142538,compare_insert_16b,hashmap_insert/1024,hashmap_insert,1024,9658.7,9787.48,106018451.91,106.02 Mops/s,2025-10-31T14:25:38.975159,Refactored Bench approach
+20251031_142638,compare_insert_16b,btree_insert/10000,btree_insert,10000,434917.68,457701.31,22992856.98,22.99 Mops/s,2025-10-31T14:26:38.521951,Refactored Bench approach
+20251031_142518,compare_insert_16b,btree_insert/64,btree_insert,64,608.07,616.7,105250946.48,105.25 Mops/s,2025-10-31T14:25:18.868969,Refactored Bench approach
+20251031_142724,compare_insert_16b,btree_insert/65536,btree_insert,65536,4959422.32,5102605.16,13214442.29,13.21 Mops/s,2025-10-31T14:27:24.498722,Refactored Bench approach
+20251031_142557,compare_insert_16b,btree_insert/1024,btree_insert,1024,17282.36,17515.86,59251173.06,59.25 Mops/s,2025-10-31T14:25:57.433065,Refactored Bench approach
+20251031_144008,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,8056218.67,8341031.6,1241277.13,1.24 Mops/s,2025-10-31T14:40:08.919115,Larger number of slots per buceket
+20251031_143949,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,2891.42,2954.83,22134467.3,22.13 Mops/s,2025-10-31T14:39:49.991570,Larger number of slots per buceket
+20251031_144021,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,38884062.5,39471245.42,1685420.6,1.69 Mops/s,2025-10-31T14:40:21.904185,Larger number of slots per buceket
+20251031_143958,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,50111.97,51253.93,20434237.73,20.43 Mops/s,2025-10-31T14:39:58.796137,Larger number of slots per buceket
+20251031_144309,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,7659399.33,7904886.32,1305585.41,1.31 Mops/s,2025-10-31T14:43:09.107908,Removed write lock on bucket
+20251031_144250,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,2690.58,2744.35,23786666.0,23.79 Mops/s,2025-10-31T14:42:50.761109,Removed write lock on bucket
+20251031_144313,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,3914958.5,4384687.45,16739896.48,16.74 Mops/s,2025-10-31T14:43:13.224951,Removed write lock on bucket
+20251031_144259,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,46439.6,47616.32,22050144.87,22.05 Mops/s,2025-10-31T14:42:59.366246,Removed write lock on bucket
+20251031_155052,compare_get_16b,optidx_standard_delta_heavy_get/10000,optidx_standard_delta_heavy_get,10000,326130.75,335312.46,30662548.67,30.66 Mops/s,2025-10-31T15:50:52.329206,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154929,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,946.6,969.54,67610238.28,67.61 Mops/s,2025-10-31T15:49:29.914964,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155142,compare_get_16b,optidx_standard_delta_heavy_get/65536,optidx_standard_delta_heavy_get,65536,2870071.75,2975640.79,22834272.35,22.83 Mops/s,2025-10-31T15:51:42.049396,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155006,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,18152.04,18497.22,56412382.16,56.41 Mops/s,2025-10-31T15:50:06.193568,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155028,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78062.08,80089.01,128103171.71,128.10 Mops/s,2025-10-31T15:50:28.056492,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154910,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,367.44,374.18,174180076.7,174.18 Mops/s,2025-10-31T15:49:10.073950,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155120,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1219727.21,1240098.78,53730046.53,53.73 Mops/s,2025-10-31T15:51:20.143342,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154947,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6764.79,6869.96,151371989.31,151.37 Mops/s,2025-10-31T15:49:47.158595,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150744,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,8382.69,8566.43,1192934618.67,1.19 Gops/s,2025-10-31T15:07:44.079653,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150539,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,36.0,36.54,1777777296.33,1.78 Gops/s,2025-10-31T15:05:39.828897,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150851,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,58270.07,59114.23,1124693979.36,1.12 Gops/s,2025-10-31T15:08:51.990589,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150638,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,553.07,560.59,1851481504.85,1.85 Gops/s,2025-10-31T15:06:38.890112,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155100,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,2995.67,3067.95,3338149511.39,3.34 Gops/s,2025-10-31T15:51:00.883770,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154938,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,22.56,22.24,2837233642.26,2.84 Gops/s,2025-10-31T15:49:38.184737,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155152,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,19498.79,19755.75,3361028724.48,3.36 Gops/s,2025-10-31T15:51:52.646621,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155016,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,311.22,315.88,3290326142.87,3.29 Gops/s,2025-10-31T15:50:16.887740,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150700,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,73198.09,76698.28,136615595.78,136.62 Mops/s,2025-10-31T15:07:00.721416,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150500,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,282.06,286.16,226903159.74,226.90 Mops/s,2025-10-31T15:05:00.720165,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150812,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1540556.44,1547991.77,42540473.33,42.54 Mops/s,2025-10-31T15:08:12.593030,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150600,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4475.41,4527.09,228805666.55,228.81 Mops/s,2025-10-31T15:06:00.931350,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155039,compare_get_16b,optidx_standard_mph_heavy_get/10000,optidx_standard_mph_heavy_get,10000,306513.38,313317.13,32625003.5,32.63 Mops/s,2025-10-31T15:50:39.858651,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154920,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,1179.11,1215.26,54278080.17,54.28 Mops/s,2025-10-31T15:49:20.503770,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_155130,compare_get_16b,optidx_standard_mph_heavy_get/65536,optidx_standard_mph_heavy_get,65536,2202903.09,2299117.91,29749833.48,29.75 Mops/s,2025-10-31T15:51:30.368623,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_154955,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,24892.86,25386.34,41136290.5,41.14 Mops/s,2025-10-31T15:49:55.970244,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_151006,compare_insert_16b,optidx_radix_insert/10000,optidx_radix_insert,10000,10115379.2,10338253.83,988593.69,988.59 Kops/s,2025-10-31T15:10:06.073827,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150944,compare_insert_16b,optidx_radix_insert/64,optidx_radix_insert,64,3490.58,3571.63,18335072.62,18.34 Mops/s,2025-10-31T15:09:44.273232,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_151019,compare_insert_16b,optidx_radix_insert/65536,optidx_radix_insert,65536,39618218.75,40319570.2,1654188.45,1.65 Mops/s,2025-10-31T15:10:19.308394,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_150955,compare_insert_16b,optidx_radix_insert/1024,optidx_radix_insert,1024,77159.82,79243.89,13271156.29,13.27 Mops/s,2025-10-31T15:09:55.049252,"FULL Benchmarking INSERTS, GETS, and ITERS"
+20251031_194939,compare_get_16b,optidx_standard_delta_heavy_get/10000,optidx_standard_delta_heavy_get,10000,282989.18,281342.47,35337039.87,35.34 Mops/s,2025-10-31T19:49:39.935431,"LINE...GETS, and ITERS"
+20251031_194739,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,884.81,898.73,72331741.42,72.33 Mops/s,2025-10-31T19:47:39.747303,"LINE...GETS, and ITERS"
+20251031_195051,compare_get_16b,optidx_standard_delta_heavy_get/65536,optidx_standard_delta_heavy_get,65536,2750687.5,2815591.32,23825316.4,23.83 Mops/s,2025-10-31T19:50:51.223665,"LINE...GETS, and ITERS"
+20251031_194836,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,14461.04,14795.27,70810953.71,70.81 Mops/s,2025-10-31T19:48:36.835354,"LINE...GETS, and ITERS"
+20251031_194919,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,79960.74,81885.29,125061373.87,125.06 Mops/s,2025-10-31T19:49:19.246604,"LINE...GETS, and ITERS"
+20251031_194719,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,422.02,427.26,151651874.91,151.65 Mops/s,2025-10-31T19:47:19.906969,"LINE...GETS, and ITERS"
+20251031_195028,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1264539.92,1277926.34,51825963.51,51.83 Mops/s,2025-10-31T19:50:28.590153,"LINE...GETS, and ITERS"
+20251031_194816,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6639.82,6745.93,154220974.98,154.22 Mops/s,2025-10-31T19:48:16.935019,"LINE...GETS, and ITERS"
+20251031_194948,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,6569.92,6661.63,1522088150.38,1.52 Gops/s,2025-10-31T19:49:48.744228,"LINE...GETS, and ITERS"
+20251031_194749,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,33.82,34.24,1892117265.35,1.89 Gops/s,2025-10-31T19:47:49.708159,"LINE...GETS, and ITERS"
+20251031_195102,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,42996.39,43496.49,1524221143.83,1.52 Gops/s,2025-10-31T19:51:02.345650,"LINE...GETS, and ITERS"
+20251031_194846,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,537.7,548.39,1904392205.93,1.90 Gops/s,2025-10-31T19:48:46.759018,"LINE...GETS, and ITERS"
+20251031_194957,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,3092.65,3137.3,3233473498.24,3.23 Gops/s,2025-10-31T19:49:57.350353,"LINE...GETS, and ITERS"
+20251031_194757,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,22.88,22.78,2797640309.43,2.80 Gops/s,2025-10-31T19:47:57.954056,"LINE...GETS, and ITERS"
+20251031_195113,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,20110.31,20356.25,3258826066.92,3.26 Gops/s,2025-10-31T19:51:13.105258,"LINE...GETS, and ITERS"
+20251031_194857,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,317.59,320.47,3224333059.74,3.22 Gops/s,2025-10-31T19:48:57.471263,"LINE...GETS, and ITERS"
+20251031_194908,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,73781.02,75947.0,135536213.63,135.54 Mops/s,2025-10-31T19:49:08.229972,"LINE...GETS, and ITERS"
+20251031_194710,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,268.67,273.27,238206501.08,238.21 Mops/s,2025-10-31T19:47:10.981891,"LINE...GETS, and ITERS"
+20251031_195016,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1486543.29,1511225.42,44086169.89,44.09 Mops/s,2025-10-31T19:50:16.506253,"LINE...GETS, and ITERS"
+20251031_194808,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4464.92,4521.48,229343533.0,229.34 Mops/s,2025-10-31T19:48:08.045692,"LINE...GETS, and ITERS"
+20251031_194929,compare_get_16b,optidx_standard_mph_heavy_get/10000,optidx_standard_mph_heavy_get,10000,134206.38,134870.89,74512108.4,74.51 Mops/s,2025-10-31T19:49:29.372922,"LINE...GETS, and ITERS"
+20251031_194730,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,630.79,639.12,101460086.76,101.46 Mops/s,2025-10-31T19:47:30.633599,"LINE...GETS, and ITERS"
+20251031_195039,compare_get_16b,optidx_standard_mph_heavy_get/65536,optidx_standard_mph_heavy_get,65536,1525255.57,1543545.81,42967225.42,42.97 Mops/s,2025-10-31T19:50:39.966315,"LINE...GETS, and ITERS"
+20251031_194827,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,9964.58,10194.15,102763973.08,102.76 Mops/s,2025-10-31T19:48:27.616836,"LINE...GETS, and ITERS"
+20251101_082030,compare_get_16b,optidx_standard_delta_heavy_get/10000,optidx_standard_delta_heavy_get,10000,278270.4,281317.89,35936269.49,35.94 Mops/s,2025-11-01T08:20:30.430078,No more Arcs
+20251101_081825,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,891.63,909.85,71778883.45,71.78 Mops/s,2025-11-01T08:18:25.813622,No more Arcs
+20251101_082147,compare_get_16b,optidx_standard_delta_heavy_get/65536,optidx_standard_delta_heavy_get,65536,2720577.56,2807758.59,24089002.67,24.09 Mops/s,2025-11-01T08:21:47.008975,No more Arcs
+20251101_081926,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,14472.55,15015.83,70754627.17,70.75 Mops/s,2025-11-01T08:19:26.614535,No more Arcs
+20251101_082009,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,78289.43,81592.35,127731168.48,127.73 Mops/s,2025-11-01T08:20:09.281687,No more Arcs
+20251101_081806,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,357.4,365.4,179069507.31,179.07 Mops/s,2025-11-01T08:18:06.392864,No more Arcs
+20251101_082124,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1182755.19,1219533.35,55409606.9,55.41 Mops/s,2025-11-01T08:21:24.496107,No more Arcs
+20251101_081906,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6937.74,7104.69,147598445.59,147.60 Mops/s,2025-11-01T08:19:06.539866,No more Arcs
+20251101_082039,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,6477.43,6627.98,1543821677.2,1.54 Gops/s,2025-11-01T08:20:39.221788,No more Arcs
+20251101_081835,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,33.75,34.46,1896103001.49,1.90 Gops/s,2025-11-01T08:18:35.808031,No more Arcs
+20251101_082158,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,41871.2,42752.48,1565180670.38,1.57 Gops/s,2025-11-01T08:21:58.294180,No more Arcs
+20251101_081936,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,535.24,549.88,1913159609.54,1.91 Gops/s,2025-11-01T08:19:36.560347,No more Arcs
+20251101_082047,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,3055.12,3100.57,3273193994.59,3.27 Gops/s,2025-11-01T08:20:47.847573,No more Arcs
+20251101_081847,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,22.54,22.7,2838796115.01,2.84 Gops/s,2025-11-01T08:18:47.235803,No more Arcs
+20251101_082209,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,20147.89,20599.14,3252747737.56,3.25 Gops/s,2025-11-01T08:22:09.088952,No more Arcs
+20251101_081947,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,317.35,323.2,3226693758.03,3.23 Gops/s,2025-11-01T08:19:47.338646,No more Arcs
+20251101_081958,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,73495.17,75423.06,136063360.33,136.06 Mops/s,2025-11-01T08:19:58.329000,No more Arcs
+20251101_081757,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,279.58,284.99,228910830.1,228.91 Mops/s,2025-11-01T08:17:57.981964,No more Arcs
+20251101_082112,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1552210.51,3302389.82,42221077.43,42.22 Mops/s,2025-11-01T08:21:12.543287,No more Arcs
+20251101_081857,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4521.2,4624.72,226488429.6,226.49 Mops/s,2025-11-01T08:18:57.404977,No more Arcs
+20251101_082019,compare_get_16b,optidx_standard_mph_heavy_get/10000,optidx_standard_mph_heavy_get,10000,139133.77,139101.55,71873275.64,71.87 Mops/s,2025-11-01T08:20:19.823207,No more Arcs
+20251101_081816,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,571.1,586.23,112063677.18,112.06 Mops/s,2025-11-01T08:18:16.603753,No more Arcs
+20251101_082135,compare_get_16b,optidx_standard_mph_heavy_get/65536,optidx_standard_mph_heavy_get,65536,1502074.55,1523257.12,43630324.38,43.63 Mops/s,2025-11-01T08:21:35.819798,No more Arcs
+20251101_081917,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,10239.94,10384.23,100000584.51,100.00 Mops/s,2025-11-01T08:19:17.382278,No more Arcs
+20251101_100301,compare_get_16b,optidx_standard_delta_heavy_get/10000,optidx_standard_delta_heavy_get,10000,187579.77,189170.62,53310653.93,53.31 Mops/s,2025-11-01T10:03:01.079822,Rfactored slot64 and embedded Indexer
+20251101_100055,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,749.84,769.36,85351930.97,85.35 Mops/s,2025-11-01T10:00:55.788985,Rfactored slot64 and embedded Indexer
+20251101_100413,compare_get_16b,optidx_standard_delta_heavy_get/65536,optidx_standard_delta_heavy_get,65536,2159315.22,2220683.63,30350362.69,30.35 Mops/s,2025-11-01T10:04:13.310110,Rfactored slot64 and embedded Indexer
+20251101_100156,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,12427.48,12655.26,82398053.97,82.40 Mops/s,2025-11-01T10:01:56.443495,Rfactored slot64 and embedded Indexer
+20251101_100238,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,119759.96,123051.86,83500363.54,83.50 Mops/s,2025-11-01T10:02:38.627309,Rfactored slot64 and embedded Indexer
+20251101_100037,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,465.07,474.36,137614429.61,137.61 Mops/s,2025-11-01T10:00:37.003154,Rfactored slot64 and embedded Indexer
+20251101_100351,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1337901.87,1371918.35,48984160.47,48.98 Mops/s,2025-11-01T10:03:51.890947,Rfactored slot64 and embedded Indexer
+20251101_100137,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,8236.23,8400.99,124328754.99,124.33 Mops/s,2025-11-01T10:01:37.100906,Rfactored slot64 and embedded Indexer
+20251101_100310,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,6868.64,6970.1,1455892982.11,1.46 Gops/s,2025-11-01T10:03:10.112434,Rfactored slot64 and embedded Indexer
+20251101_100105,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,33.81,34.55,1892982208.03,1.89 Gops/s,2025-11-01T10:01:05.780221,Rfactored slot64 and embedded Indexer
+20251101_100424,compare_get_16b,optidx_radix_iter_all/65536,optidx_radix_iter_all,65536,44584.58,44733.21,1469925388.5,1.47 Gops/s,2025-11-01T10:04:24.600728,Rfactored slot64 and embedded Indexer
+20251101_100206,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,546.71,558.72,1873025688.42,1.87 Gops/s,2025-11-01T10:02:06.465732,Rfactored slot64 and embedded Indexer
+20251101_100319,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,3351.58,3434.9,2983670879.82,2.98 Gops/s,2025-11-01T10:03:19.032415,Rfactored slot64 and embedded Indexer
+20251101_100116,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,21.44,21.79,2984432651.39,2.98 Gops/s,2025-11-01T10:01:16.991653,Rfactored slot64 and embedded Indexer
+20251101_100435,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,21762.56,22106.99,3011410822.9,3.01 Gops/s,2025-11-01T10:04:35.852423,Rfactored slot64 and embedded Indexer
+20251101_100217,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,346.94,355.69,2951558419.08,2.95 Gops/s,2025-11-01T10:02:17.727408,Rfactored slot64 and embedded Indexer
+20251101_100228,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,72773.04,74971.31,137413527.88,137.41 Mops/s,2025-11-01T10:02:28.681195,Rfactored slot64 and embedded Indexer
+20251101_100027,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,283.02,288.23,226129494.69,226.13 Mops/s,2025-11-01T10:00:27.677113,Rfactored slot64 and embedded Indexer
+20251101_100338,compare_get_16b,optidx_radix_get/65536,optidx_radix_get,65536,1598537.9,1614148.37,40997463.87,41.00 Mops/s,2025-11-01T10:03:38.877847,Rfactored slot64 and embedded Indexer
+20251101_100127,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4628.87,4727.7,221220492.22,221.22 Mops/s,2025-11-01T10:01:27.339633,Rfactored slot64 and embedded Indexer
+20251101_100249,compare_get_16b,optidx_standard_mph_heavy_get/10000,optidx_standard_mph_heavy_get,10000,141360.32,145938.94,70741208.34,70.74 Mops/s,2025-11-01T10:02:49.168232,Rfactored slot64 and embedded Indexer
+20251101_100047,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,568.28,578.29,112620181.7,112.62 Mops/s,2025-11-01T10:00:47.219286,Rfactored slot64 and embedded Indexer
+20251101_100403,compare_get_16b,optidx_standard_mph_heavy_get/65536,optidx_standard_mph_heavy_get,65536,1510531.57,1553204.46,43386051.21,43.39 Mops/s,2025-11-01T10:04:03.274563,Rfactored slot64 and embedded Indexer
+20251101_100147,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,9938.55,10118.76,103033116.99,103.03 Mops/s,2025-11-01T10:01:47.782179,Rfactored slot64 and embedded Indexer
+20251101_102010,compare_get_16b,optidx_standard_delta_heavy_get/64,optidx_standard_delta_heavy_get,64,750.75,768.92,85248111.79,85.25 Mops/s,2025-11-01T10:20:10.218588,Latest MPH
+20251101_102049,compare_get_16b,optidx_standard_delta_heavy_get/1024,optidx_standard_delta_heavy_get,1024,12006.06,12244.08,85290242.54,85.29 Mops/s,2025-11-01T10:20:49.304899,Latest MPH
+20251101_124722,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,73365.99,74524.01,136302944.96,136.30 Mops/s,2025-11-01T12:47:22.696413,Latest MPH
+20251101_124818,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,371.11,377.68,172455549.89,172.46 Mops/s,2025-11-01T12:48:18.654281,Latest MPH
+20251101_124342,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1190746.85,1220634.27,55037726.73,55.04 Mops/s,2025-11-01T12:43:42.244818,Latest MPH
+20251101_124827,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6516.97,6621.76,157128341.84,157.13 Mops/s,2025-11-01T12:48:27.500691,Latest MPH
+20251101_123259,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,3383.81,3419.61,2955246186.6,2.96 Gops/s,2025-11-01T12:32:59.139957,Latest MPH
+20251101_123219,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,21.56,21.78,2968946765.66,2.97 Gops/s,2025-11-01T12:32:19.206913,Latest MPH
+20251101_123329,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,21970.92,21751.28,2982851889.19,2.98 Gops/s,2025-11-01T12:33:29.516751,Latest MPH
+20251101_123239,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,345.66,348.22,2962451868.49,2.96 Gops/s,2025-11-01T12:32:39.256315,Latest MPH
+20251101_102100,compare_get_16b,optidx_radix_get/10000,optidx_radix_get,10000,72387.03,74340.64,138146302.68,138.15 Mops/s,2025-11-01T10:21:00.088086,Latest MPH
+20251101_101941,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,276.71,286.26,231293063.48,231.29 Mops/s,2025-11-01T10:19:41.534696,Latest MPH
+20251101_102020,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4545.68,4674.51,225268939.21,225.27 Mops/s,2025-11-01T10:20:20.485972,Latest MPH
+20251101_102001,compare_get_16b,optidx_standard_mph_heavy_get/64,optidx_standard_mph_heavy_get,64,591.59,604.65,108182688.67,108.18 Mops/s,2025-11-01T10:20:01.570703,Latest MPH
+20251101_102040,compare_get_16b,optidx_standard_mph_heavy_get/1024,optidx_standard_mph_heavy_get,1024,9723.09,10013.69,105316367.01,105.32 Mops/s,2025-11-01T10:20:40.700144,Latest MPH
+20251101_130831,compare_get_16b,optidx_mph_get/10000,optidx_mph_get,10000,74471.69,75630.12,134279215.82,134.28 Mops/s,2025-11-01T13:08:31.234920,MPH No Indexs from here!
+20251101_130750,compare_get_16b,optidx_mph_get/64,optidx_mph_get,64,376.45,383.72,170007327.04,170.01 Mops/s,2025-11-01T13:07:50.025743,MPH No Indexs from here!
+20251101_130858,compare_get_16b,optidx_mph_get/65536,optidx_mph_get,65536,1177593.33,1196813.96,55652489.13,55.65 Mops/s,2025-11-01T13:08:58.120366,MPH No Indexs from here!
+20251101_130809,compare_get_16b,optidx_mph_get/1024,optidx_mph_get,1024,6413.34,6504.92,159667165.07,159.67 Mops/s,2025-11-01T13:08:09.598881,MPH No Indexs from here!
+20251101_130546,compare_get_16b,optidx_radix_iter_all/10000,optidx_radix_iter_all,10000,7016.7,7085.63,1425172308.39,1.43 Gops/s,2025-11-01T13:05:46.760111,MPH No Indexs from here!
+20251101_130445,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,34.09,34.5,1877610351.02,1.88 Gops/s,2025-11-01T13:04:45.843836,MPH No Indexs from here!
+20251101_130515,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,533.4,539.04,1919754904.17,1.92 Gops/s,2025-11-01T13:05:15.697019,MPH No Indexs from here!
+20251101_130839,compare_get_16b,optidx_mph_iter_all/10000,optidx_mph_iter_all,10000,3101.4,3132.6,3224352592.34,3.22 Gops/s,2025-11-01T13:08:39.902809,MPH No Indexs from here!
+20251101_130800,compare_get_16b,optidx_mph_iter_all/64,optidx_mph_iter_all,64,20.02,20.33,3197134654.2,3.20 Gops/s,2025-11-01T13:08:00.814758,MPH No Indexs from here!
+20251101_130908,compare_get_16b,optidx_mph_iter_all/65536,optidx_mph_iter_all,65536,20161.41,20571.74,3250566760.74,3.25 Gops/s,2025-11-01T13:09:08.929118,MPH No Indexs from here!
+20251101_130820,compare_get_16b,optidx_mph_iter_all/1024,optidx_mph_iter_all,1024,314.55,321.4,3255430307.83,3.26 Gops/s,2025-11-01T13:08:20.319336,MPH No Indexs from here!
+20251101_134046,compare_get_16b,optidx_radix_iter_all/64,optidx_radix_iter_all,64,33.94,34.45,1885561462.28,1.89 Gops/s,2025-11-01T13:40:46.845908,RADIX 2
+20251101_134106,compare_get_16b,optidx_radix_iter_all/1024,optidx_radix_iter_all,1024,544.47,553.36,1880734409.35,1.88 Gops/s,2025-11-01T13:41:06.751742,RADIX 2
+20251102_170743,compare_get_16b,radix_v2_get/10000,radix_v2_get,10000,54809.26,55971.17,182450909.37,182.45 Mops/s,2025-11-02T17:07:43.916376,RADIX 2
+20251102_170724,compare_get_16b,radix_v2_get/64,radix_v2_get,64,218.92,225.57,292346351.38,292.35 Mops/s,2025-11-02T17:07:24.984300,RADIX 2
+20251102_170754,compare_get_16b,radix_v2_get/65536,radix_v2_get,65536,413635.37,461688.14,158439063.1,158.44 Mops/s,2025-11-02T17:07:54.420060,RADIX 2
+20251102_170734,compare_get_16b,radix_v2_get/1024,radix_v2_get,1024,4172.62,4239.93,245409535.63,245.41 Mops/s,2025-11-02T17:07:34.777892,RADIX 2
+20251101_134037,compare_get_16b,optidx_radix_get/64,optidx_radix_get,64,287.65,293.18,222492744.89,222.49 Mops/s,2025-11-01T13:40:37.039312,RADIX 2
+20251101_134056,compare_get_16b,optidx_radix_get/1024,optidx_radix_get,1024,4571.74,4670.87,223984771.72,223.98 Mops/s,2025-11-01T13:40:56.920511,RADIX 2
