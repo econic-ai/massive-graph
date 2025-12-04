@@ -1711,6 +1711,7 @@ dependencies = [
  "console_error_panic_hook",
  "criterion",
  "crossbeam",
+ "crossbeam-epoch",
  "dashmap",
  "getrandom 0.3.3",
  "js-sys",
